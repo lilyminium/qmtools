@@ -17,7 +17,7 @@ class GeometryFile(InteractionBase):
     def split_path_and_file(self, file_name, *path_to_file):
         self.path_to_file = "/".join(path_to_file[::-1])
         if self.path_to_file:
-            self.path_to_file+"/"
+            self.path_to_file += "/"
         self.file_name = file_name
         self.split_file(*file_name.split(".")[::-1])
 
