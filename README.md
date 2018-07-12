@@ -1,1 +1,3 @@
 # qmtools
+
+qmin: crin2
