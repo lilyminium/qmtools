@@ -15,6 +15,7 @@ class FileReader:
     def read(self):
         try:
             self.structure = md.load(self.file, top=self.md_topology())
+            self.xyz = self.structure.xyz[0]
         except ValueError:
             self.structure = md.load(self.file, top=self.xyz_topology())
         except OSError:
@@ -25,11 +26,11 @@ class FileReader:
     def log_to_df(self):
         atoms = coordinate_lines_from_log(self.file)
         df = pd.DataFrame.from_dict(atoms)
-        df['element'] = [meev.element(int(x)).symbol for x in df['atomic_number']]
         df['name'] = df['element']
         df['resSeq'] = 1
         df['resName'] = "UNK"
         df['chainID'] = 0
+        df['serial'] = list(range(1, len(df['element'])+1))
         return df
 
     def xyz_topology(self):
@@ -42,14 +43,15 @@ class FileReader:
         df['serial'] = list(range(1, len(df['element'])+1))
         bonds = np.empty((0, 0))
         top =  md.Topology.from_dataframe(df, bonds)
+        self.xyz = df.loc[:, ('x', 'y', 'z')].values.astype(float)
         return top
 
     def load_log(self):
         df = self.log_to_df()
         bonds = np.empty((0, 0))
         topology = md.Topology.from_dataframe(df, bonds)
-        xyz = df.loc[:, ('x', 'y', 'z')].values
-        return md.Trajectory(xyz, topology)
+        self.xyz = df.loc[:, ('x', 'y', 'z')].values.astype(float)
+        return md.Trajectory(self.xyz, topology)
 
     def md_topology(self):
         df, bonds = md.load(self.file).topology.to_dataframe()

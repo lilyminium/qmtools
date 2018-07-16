@@ -89,8 +89,9 @@ class QMInp(InteractionBase):
         self.REMOTE_DIR = REMOTE_DIR
         self.RJ_UNAME = RJ_UNAME
         self.process_geometry(file)
-        self.ask_questions()
         self.make_coords()
+        self.ask_questions()
+        
         self.make_string_options()
         self.make_file_lines()
         self.write_file()
@@ -106,12 +107,12 @@ class QMInp(InteractionBase):
         self.cm = f"{self.charge} {self.multiplicity}"
         self.jobid = self.geometry.base_name
         self.path = self.geometry.path_to_file
-        self.xyz_arr = self.geometry.structure.xyz[0]
+        self.xyz_arr = self.geometry.xyz
         self.elements = self.geometry.elements
 
     def ask_questions(self):
         self.ask("theory")
-        self.jobid += f"_{self.theory}"
+        self.jobid += f".{self.theory}"
         self.ask("basis")
         self.jobid += f"_{self.rassolov_version}"
         self.askbool("solvate")
@@ -119,8 +120,10 @@ class QMInp(InteractionBase):
 
     def make_coords(self):
         out = []
+        print(self.xyz_arr)
+        print(list(zip(self.elements, self.xyz_arr)))
         for el, (x, y, z) in zip(self.elements, self.xyz_arr):
-            out.append(f"{el:2} {x:>16.8f}{y:>16.8f}{z:>16.8f}")
+            out.append(f"{el:2} {x:>16.10f}{y:>16.10f}{z:>16.10f}")
         self.n_coords = len(out)
         self.coords = "\n".join(out) + "\n"
 

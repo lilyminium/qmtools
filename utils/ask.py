@@ -1,4 +1,5 @@
 import inspect
+from .colors import style
 
 class Ask:
     """
@@ -17,10 +18,10 @@ class Ask:
         while True:
             answer = input(self.ask_text)
             if not answer:
-                print(f"Picked: {self.default}\n")
+                print(style(f"Picked: {self.default}\n", "darkcyan"))
                 return self.default
             elif self.is_option(answer):
-                print(f"Picked: {answer}\n")
+                print(style(f"Picked: {answer}\n", "darkcyan"))
                 return answer
             else:
                 print("Invalid answer.")
@@ -66,10 +67,8 @@ class Ask:
             self.options_text = "No predefined options."
 
     def make_ask_text(self, ask):
-        self.ask_text = f"""{ask}
-        {self.default_text}
-        Options:
-        {self.options_text}{self.valid_text}
+        self.ask_text = f"""{style(ask, "cyan")}  {self.default_text}
+        Options: {self.options_text}{self.valid_text}
         """
 
 class AskBool(Ask):
@@ -83,15 +82,15 @@ class AskBool(Ask):
         while True:
             answer = input(self.ask_text)
             if not answer:
-                print(f"Picked: {self.default}\n")
+                print(style(f"Picked: {self.default}\n", "darkcyan"))
                 return self.default
 
             elif answer.lower() in ["t", "y", "true", "ture", "tru"]:
-                print("Picked: True\n")
+                print(style("Picked: True\n", "darkcyan"))
                 return True
 
             elif answer.lower() in ["f", "n", "false", "flase", "flse"]:
-                print("Picked: False\n")
+                print(style("Picked: False\n", "darkcyan"))
                 return False
 
             else:

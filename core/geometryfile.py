@@ -9,6 +9,7 @@ class GeometryFile(InteractionBase):
     def __init__(self, file):
         read = FileReader(file)
         self.structure = read.structure
+        self.xyz = read.xyz
         self.topology = read.topology
         df, _ = read.topology
         self.elements = df['element']
@@ -23,7 +24,7 @@ class GeometryFile(InteractionBase):
 
     def split_file(self, extension, *file_name_parts):
         self.extension = extension
-        self.base_name = ".".join(file_name_parts[::-1])
+        self.base_name = file_name_parts[-1] #".".join(file_name_parts[::-1])
 
     def get_heavy_atoms(self):
         self.n_heavy_atoms = len([x for x in self.elements if x != "H"])

@@ -65,8 +65,7 @@ class GaussianInp(QMInp):
     def make_file_lines(self):
         basis = f"@/home/{self.REMOTE_DIR}/{self.RJ_UNAME}/Basis/{self.genbasis}.gbs/N\n\n"
         link = "\n--Link1--\n"
-        geom = f"geom=check guess=read IOP(2/17=4)\n\n{self.jobid}\n\n{self.cm}\n\n"
-        header_ = f"%chk={self.jobid}.chk\n\# {self.theory}/{self.basis} SCF={self.convergence}{self.grid}{self.opt}{self.freq}"
+        header_ = f"%chk={self.jobid}.chk\n# {self.theory}/{self.basis} SCF={self.convergence}{self.grid}{self.opt}{self.freq}"
         geom = f"geom=check guess=read IOP(2/17=4)\n\n{self.jobid}\n\n{self.cm}\n\n"
         molspec = f"\n\n{self.cm}\n{self.coords}\n"
 
@@ -79,6 +78,8 @@ class GaussianInp(QMInp):
                 footer += f"{link}{header_}{self.scrf_dovac}\n{geom}{basis}"
         else:
             header += f"{self.scrf}\n"
+
+        header += f"\n{self.jobid}"
 
         self.file_lines = header + molspec + footer
         
