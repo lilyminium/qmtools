@@ -1,6 +1,6 @@
 from core.interaction import InteractionBase
 from core.geometryfile import GeometryFile
-from utils.colors import style
+from utils import style, computersafe
 
 class QMInp(InteractionBase):
     """
@@ -158,7 +158,7 @@ class QMInp(InteractionBase):
         self.coords = "\n".join(out) + "\n"
 
     def write_file(self):
-        filename = f"{self.path}{self.jobid}.{self.ext}"
+        filename = computersafe(f"{self.path}{self.jobid}.{self.ext}")
         with open(filename, 'w') as f:
             f.write(self.file_lines)
         print(style(f"\n        Written to {filename}\n", "bold", "green"))

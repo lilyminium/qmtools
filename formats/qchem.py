@@ -46,6 +46,6 @@ class QChemInp(QMInp):
         rem_body = "".join([indent(x, n=4) for x in rem_lines])
 
         molspec = f"$molecule\n  {self.cm}\n{self.coords}$end\n"
-        rem = f"\n$rem\n{rem_body}$end\n"
+        rem = f"\n$rem\n\n\n{rem_body}$end\n"
 
         self.file_lines = f"{molspec}{rem}{self.solvent_section}"

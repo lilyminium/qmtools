@@ -47,9 +47,37 @@ def coordinate_lines_from_log(file):
     keys = ["element", "x", "y", "z"]
     return lines_to_dct(geometry, keys, delimiter=",")
 
+def energy_from_log(file):
+    lines = clean_text_from_file(file)
+    infile = section_by_pattern(lines, pattern="\*\*\*\*\*\*\*\*\*\*\*")[2]
+    cards = section_by_pattern(infile, pattern="-----------------------------------------------------")[1]
+    theory = cards.strip().split()[1].split("/")[0]
+
+    from_end = section_by_pattern(lines[::-1], pattern="moment")[0]
+    joined = "".join([x.strip() for x in from_end[::-1]])
+    for line in joined.split("\\")[::-1]:
+        if re.search(f"{theory.upper()}=[-+]?[0-9]+\.[0-9]*", line):
+            energy = float(line.split("=")[1])
+            return {theory: energy}
+
+
 def coordinate_lines_from_xyz(file):
     lines = clean_text_from_file(file)
     coordinate_lines = read_coordinate_lines(lines)
     keys = ["element", "x", "y", "z"]
     return lines_to_dct(coordinate_lines, keys)
 
+def computersafe(txt):
+    out = []
+    for char in txt:
+        if char == "(":
+            out.append('-')
+        elif char == "*":
+            out.append("d")
+        elif char == "+":
+            out.append("p")
+        elif char == " ":
+            out.append("_")
+        elif char != ")":
+            out.append(char)
+    return "".join(out)
