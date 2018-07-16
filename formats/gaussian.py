@@ -31,7 +31,8 @@ class GaussianInp(QMInp):
                     }
         try:
             self.rassolov_version = to_rass[self.basis]
-            self.askbool("rassolov")
+            if self._ask_questions:
+                self.askbool("rassolov")
         except KeyError:
             self.rassolov_version = self.basis
 

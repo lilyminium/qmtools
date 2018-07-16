@@ -10,5 +10,6 @@ textcolors = dict(PURPLE = '\033[95m',
                     UNDERLINE = '\033[4m',
                     END = '\033[0m')
 
-def style(text, color):
-    return f"{textcolors.get(color.upper(), '')}{text}{textcolors['END']}"
+def style(text, *color):
+    colors = [textcolors.get(x.upper(), '') for x in color]
+    return f"{''.join(colors)}{text}{textcolors['END']}"

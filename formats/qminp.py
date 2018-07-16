@@ -1,5 +1,6 @@
 from core.interaction import InteractionBase
 from core.geometryfile import GeometryFile
+from utils.colors import style
 
 class QMInp(InteractionBase):
     """
@@ -30,6 +31,7 @@ class QMInp(InteractionBase):
     transition_state = False
 
     ext = None
+    _ask_questions = True
 
     #
     # Questions to ask
@@ -84,13 +86,45 @@ class QMInp(InteractionBase):
         transition_state = "Is it a transition state?"
         )
 
-    def __init__(self, file, show=False, HOME=None, REMOTE_DIR=None, RJ_UNAME=None):
+    def __init__(self, file, show=False, interactive=False, HOME=None, REMOTE_DIR=None, RJ_UNAME=None, **kwargs):
         self.HOME = HOME
         self.REMOTE_DIR = REMOTE_DIR
         self.RJ_UNAME = RJ_UNAME
+        print(style(f"    File: {file}", "yellow"))
         self.process_geometry(file)
+
+        if kwargs:
+            if not interactive:
+                self._ask_questions = False
+
+            rassolov = kwargs.pop("rassolov", True)
+            basis = kwargs.pop("basis", self.basis)
+            theory = kwargs.pop("theory", self.theory)
+            self.basis = basis
+            self.theory = theory
+            self.rassolov = rassolov
+            self.jobid = f"{self.geometry.base_name}.{self.theory}_{self.rassolov_version}"
+            
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
+            
+
         self.make_coords()
-        self.ask_questions()
+        if self._ask_questions:
+            self.ask_questions()
+        else:
+            print(f"""
+                Theory  : {self.theory}
+                Basis   : {self.basis} {("" if not self.rassolov else self.genbasis)} (Rassolov={self.rassolov})
+                Charge  : {self.charge}  Multiplicity: {self.multiplicity}
+                Optimize: {self.optimize}  Frequencies: {self.calculate_frequencies}
+                Solvate : {self.solvate}""")
+            if self.solvate:
+                print(f"""
+                    Solvent model: {self.solvent_model}
+                    Solvent      : {self.solvent}
+                    """[1:])
         
         self.make_string_options()
         self.make_file_lines()
@@ -102,15 +136,14 @@ class QMInp(InteractionBase):
 
     def process_geometry(self, file):
         self.geometry = GeometryFile(file)
-        self.ask("charge")
-        self.ask("multiplicity")
-        self.cm = f"{self.charge} {self.multiplicity}"
         self.jobid = self.geometry.base_name
         self.path = self.geometry.path_to_file
         self.xyz_arr = self.geometry.xyz
         self.elements = self.geometry.elements
 
     def ask_questions(self):
+        self.ask("charge")
+        self.ask("multiplicity")
         self.ask("theory")
         self.jobid += f".{self.theory}"
         self.ask("basis")
@@ -120,8 +153,6 @@ class QMInp(InteractionBase):
 
     def make_coords(self):
         out = []
-        print(self.xyz_arr)
-        print(list(zip(self.elements, self.xyz_arr)))
         for el, (x, y, z) in zip(self.elements, self.xyz_arr):
             out.append(f"{el:2} {x:>16.10f}{y:>16.10f}{z:>16.10f}")
         self.n_coords = len(out)
@@ -131,13 +162,18 @@ class QMInp(InteractionBase):
         filename = f"{self.path}{self.jobid}.{self.ext}"
         with open(filename, 'w') as f:
             f.write(self.file_lines)
-        print(f"Written to {filename}\n")
+        print(style(f"Written to {filename}\n", "bold", "green"))
 
 
 
     
     # Properties that ask further questions (or not) when set.
     # There's probably a better way of doing this.
+
+    @property
+    def cm(self):
+        return f"{self.charge} {self.multiplicity}"
+    
     
     @property
     def basis(self):
@@ -153,10 +189,9 @@ class QMInp(InteractionBase):
                     "6-31+G(d)": "6-31pGd",
                     }
         try:
-            self.rassolov_version = to_rass[self.basis]
+            self.rassolov_version = to_rass[self._basis]
         except KeyError:
-            self.rassolov_version = self.basis
-
+            self.rassolov_version = self._basis
 
 
     @property
@@ -179,12 +214,20 @@ class QMInp(InteractionBase):
 
     @solvate.setter
     def solvate(self, to_solvate):
+        if to_solvate == []:
+            to_solvate = True
         self._solvate = to_solvate
         if to_solvate:
-            self._solvate = True
-            self.ask("solvent_model")
-            self.ask("solvent")
-            self.askbool("dGsolv")
+            if self._ask_questions:
+                self.ask("solvent_model")
+                self.ask("solvent")
+                self.askbool("dGsolv")
+            else:
+                try:
+                    self.solvent = to_solvate[0]
+                    self.solvent_model = to_solvate[1]
+                except:
+                    pass
 
             self.jobid += f"_{self.solvent}"
 
@@ -205,9 +248,10 @@ class QMInp(InteractionBase):
     def optimize(self, to_optimize):
         if to_optimize:
             self._optimize = True
-            self.askbool("zmat")
-            self.askbool("transition_state")
-            self.askbool("calculate_frequencies")
+            if self._ask_questions:
+                self.askbool("zmat")
+                self.askbool("transition_state")
+                self.askbool("calculate_frequencies")
             self.jobid += "_opt"
 
 

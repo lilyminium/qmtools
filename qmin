@@ -4,21 +4,84 @@ import argparse
 import sys
 import os
 from formats import qm_packages
+from utils.colors import style
 
 
-parser = argparse.ArgumentParser(add_help=True, description = 'takes an xyz file and sets up a calc ')
-parser.add_argument('file', help='input file -- anything parseable by mdtraj or a Gaussian log file')
-parser.add_argument('-m', 
+parser = argparse.ArgumentParser(add_help=True, description = 'takes a coordinate file and sets up an input file. ')
+parser.add_argument('file', 
+                        nargs="+",
+                        help='input file -- anything parseable by mdtraj or a Gaussian log file')
+parser.add_argument('-p', 
                         type=str, 
                         dest="program",
-                        required=True, 
                         choices=["gaussian", "qchem", "molpro"],
-                        help='software package')
+                        default="gaussian",
+                        help='software package (default: gaussian)')
+parser.add_argument('-i',
+                        dest="interactive",
+                        action="store_true",
+                        help="Interactive prompts."
+                        )
 parser.add_argument('--show',
                         dest="show",
                         action="store_true",
                         help='Print file when finished.'
                         )
+parser.add_argument('--opt',
+                        dest="optimize",
+                        action="store_true",
+                        help="Optimize geometry."
+                        )
+parser.add_argument('--freq',
+                        dest="calculate_frequencies",
+                        action="store_true",
+                        help="Calculate frequencies."
+                        )
+parser.add_argument('--solvate',
+                        dest="solvate",
+                        nargs="*",
+                        choices=["SMD", "toluene", "etac", "water"],
+                        help="Solvate molecule [solvent [solvent model]].",
+                        )
+
+parser.add_argument('--norass',
+                        dest="rassolov",
+                        action="store_false",
+                        help="Don't use a Rassolov basis set.",
+                        )
+
+parser.add_argument('-b',
+                        dest="basis",
+                        choices = ("sto3g", "321", "6-31G", "6-31G*", "6-31+G*", 
+                                        "6-31G(d)", "6-31+G(d)", "G3largeXP", 
+                                        "GTMP2LARGE", "HF6Z", "HFQZ", "Br.aug-cc-pvtz-DK",
+                                        "Br.aug-cc-pvtz", "Br.cc-pvtz-DK", "Br.cc-pvtz",
+                                        "C.6-311pG-3df", "C.g3mp2large", "H.6-311pG-2p",
+                                        "H.g3mp2large", "g3xlarge"),
+                        default="6-31+G*",
+                        help="Basis set (default: 6-31+G*)."
+                        )
+
+parser.add_argument('-t',
+                        dest="theory",
+                        choices=["M062X", "CSD", "QCI", "MP2", "HF"],
+                        default="MP2",
+                        help="Level of theory (default: MP2)."
+                        )
+parser.add_argument('-m',
+                        dest="multiplicity",
+                        type=int,
+                        default=1,
+                        help="Multiplicity (default: 1)."
+                        )
+parser.add_argument('-c',
+                        dest="charge",
+                        type=int,
+                        default=0,
+                        help="Charge (default: 0)."
+                        )
+
+
 args = parser.parse_args(sys.argv[1:])
 
 def get_environment():
@@ -33,14 +96,17 @@ def get_environment():
 env = get_environment()
 
 
-print(f"""
+print(style(f"""
     #######################################
     #        STARTING   JOB  INPUT        #
     #######################################
 
     Software: {args.program.capitalize()}
-    File: {args.file}
-    """)
+    """, "yellow"))
 
-qm_packages[args.program](args.file, show=args.show, **env)
+vargs = dict(**vars(args))
+vargs.pop("file")
+
+for file in args.file:
+    qm_packages[args.program](file, **vargs, **env)
 

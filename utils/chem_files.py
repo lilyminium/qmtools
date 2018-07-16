@@ -44,7 +44,6 @@ def coordinate_lines_from_log(file):
     last = section_by_pattern(lines, pattern="Test job not archived.")
     sections = "".join([x.strip() for x in last[-1]]).split("\\\\")
     geometry = sections[3].split("\\")[1:]
-    print(geometry)
     keys = ["element", "x", "y", "z"]
     return lines_to_dct(geometry, keys, delimiter=",")
 
