@@ -19,7 +19,7 @@ class QMInp(InteractionBase):
     charge = 0
     multiplicity = 1
     _convergence = "Tight"
-    _rassolov = True
+    rassolov = True
     _solvate = False
     solvent_model = "SMD"
     solvent = "water"
@@ -40,7 +40,7 @@ class QMInp(InteractionBase):
     question_options = dict(
         theory          = dict(
                             ask="What level of theory do you want to use?",
-                            options=["M062X", "CSD", "QCI", "MP2", "HF"]
+                            options=["M062X", "CSD", "QCI", "MP2", "HF", "CCSD(T)"]
                             ),
         basis           = dict(
                             ask="Which basis do you want to use?",
@@ -100,9 +100,9 @@ class QMInp(InteractionBase):
             rassolov = kwargs.pop("rassolov", True)
             basis = kwargs.pop("basis", self.basis)
             theory = kwargs.pop("theory", self.theory)
+            self.rassolov = rassolov
             self.basis = basis
             self.theory = theory
-            self.rassolov = rassolov
             self.jobid = f"{self.geometry.base_name}.{self.theory}_{self.rassolov_version}"
             
             for k, v in kwargs.items():
@@ -123,8 +123,7 @@ class QMInp(InteractionBase):
             if self.solvate:
                 print(f"""
                     Solvent model: {self.solvent_model}
-                    Solvent      : {self.solvent}
-                    """[1:])
+                    Solvent      : {self.solvent}"""[1:])
         
         self.make_string_options()
         self.make_file_lines()
@@ -162,7 +161,7 @@ class QMInp(InteractionBase):
         filename = f"{self.path}{self.jobid}.{self.ext}"
         with open(filename, 'w') as f:
             f.write(self.file_lines)
-        print(style(f"Written to {filename}\n", "bold", "green"))
+        print(style(f"\n        Written to {filename}\n", "bold", "green"))
 
 
 
@@ -182,31 +181,27 @@ class QMInp(InteractionBase):
     @basis.setter
     def basis(self, basis_set):
         self._basis = basis_set
-        
         to_rass = {"6-31G*":"6-31Gd",
                     "6-31G(d)":"6-31Gd",
                     "6-31+G*": "6-31pGd",
                     "6-31+G(d)": "6-31pGd",
                     }
-        try:
-            self.rassolov_version = to_rass[self._basis]
-        except KeyError:
-            self.rassolov_version = self._basis
+        self.rassolov_version = to_rass.get(self._basis, self._basis)
 
 
-    @property
-    def rassolov(self):
-        return self._rassolov
+    # @property
+    # def rassolov(self):
+    #     return self._rassolov
 
-    @rassolov.setter
-    def rassolov(self, to_rassolov):
-        self._rassolov = to_rassolov
+    # @rassolov.setter
+    # def rassolov(self, to_rassolov):
+    #     self._rassolov = to_rassolov
 
-        if self._rassolov:
-            self.genbasis = self.rassolov_version
-            self._basis = "Gen 6D"
-        else:
-            self.genbasis = self.basis
+    #     if self._rassolov:
+    #         self.genbasis = self.rassolov_version
+    #         self._basis = "Gen 6D"
+    #     else:
+    #         self.genbasis = self.basis
 
     @property
     def solvate(self):

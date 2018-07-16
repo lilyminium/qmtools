@@ -30,12 +30,19 @@ class GaussianInp(QMInp):
                     "6-31+G(d)": "6-31pGd",
                     }
         try:
-            self.rassolov_version = to_rass[self.basis]
+            self.rassolov_version = to_rass[self._basis]
             if self._ask_questions:
                 self.askbool("rassolov")
-        except KeyError:
-            self.rassolov_version = self.basis
+            if self.rassolov:
+                self.genbasis = self.rassolov_version
+                self._basis = "Gen 6D"
+            else:
+                self.genbasis = self._basis
 
+        except KeyError:
+            self.rassolov_version = self._basis
+            self.rassolov = None
+            self.genbasis = self._basis
 
     def make_string_options(self):
         if self.theory not in ["csd", "qci", "mp2", "hf"]:
