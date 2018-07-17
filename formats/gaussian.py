@@ -7,6 +7,7 @@ class GaussianInp(QMInp):
     Note -- unsure when the z-matrix stuff is ever used.
     """
     ext = "com"
+    program = "gaussian"
 
     grid = ""
     opt = ""

@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+
+import argparse
+import sys
+from formats.job import RaijinQJob
+
+parser = argparse.ArgumentParser(add_help=True, description = 'submits files to Raijin')
+parser.add_argument('file', 
+                        nargs="+",
+                        help='input file -- anything parseable by mdtraj or a Gaussian log file')
+parser.add_argument('-vmem', 
+                        type=int, 
+                        dest="vmem_mb",
+                        help='virtual memory (MB)')
+parser.add_argument('-ncpus',
+                        type = int,
+                        dest="ncpus"
+                        )
+parser.add_argument('-ngpus',
+                        dest="ngpus",
+                        type = int,
+                        help='Print file when finished.'
+                        )
+parser.add_argument('-jobfs',
+                        dest="jobfs_mb",
+                        type = int,
+                        help="Disk space (MB)."
+                        )
+parser.add_argument('-walltime',
+                        dest="walltime",
+                        type=int,
+                        help="Walltime (hours)"
+                        )
+parser.add_argument('-subdir',
+                        dest="subdir",
+                        default="",
+                        type=str,
+                        help="subdirectory of short for files to go into"
+                        )
+
+print(sys.argv)
+
+args = parser.parse_args(sys.argv[1:])
+
+kwargs = {}
+
+for k, v in vars(args).items():
+    if v is not None:
+        kwargs[k] = v
+
+kwargs.pop("file", None)
+
+
+for file in args.file:
+    RaijinQJob.from_file(file, **kwargs)

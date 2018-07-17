@@ -4,7 +4,7 @@ import argparse
 import sys
 import os
 from formats import qm_packages
-from utils.colors import style
+from utils import style, get_environment
 
 theory = {
     "M062X" : "M062X",
@@ -94,14 +94,7 @@ parser.add_argument('-c',
 
 args = parser.parse_args(sys.argv[1:])
 
-def get_environment():
-    dct = {}
-    needed = "HOME REMOTE_DIR RJ_UNAME".split()
-    for n in needed:
-        dct[n] = os.environ.get(n)
-    if dct["RJ_UNAME"] is None:
-        dct["RJ_UNAME"] = os.environ.get("REMOTE_USER")
-    return dct
+
 
 env = get_environment()
 

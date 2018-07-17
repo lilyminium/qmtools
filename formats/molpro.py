@@ -6,6 +6,7 @@ class MolProInp(QMInp):
     MolPro input. The z-matrix probably doesn't work.
     """
     ext = "ini"
+    program = "molpro"
 
     zmat_str = ""
     opt_str = ""

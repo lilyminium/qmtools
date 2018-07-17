@@ -1,4 +1,5 @@
 import re
+import os
 
 regex_float = '[-+]?[0-9]*\.?[0-9]+'
 regex_coords = '\s+'.join([regex_float]*3)
@@ -81,3 +82,23 @@ def computersafe(txt):
         elif char != ")":
             out.append(char)
     return "".join(out)
+
+def file_details(file):
+    abs_file = os.path.abspath(file)
+    path_split = abs_file.split("/")
+    try:
+        base_directory = path_split[-2]
+    except:
+        base_directory = ""
+    directory = "/".join(path_split[:-1])
+    file_split = path_split[-1].split(".")
+    extension = file_split[-1]
+    base_name = ".".join(file_split[:-1])
+
+    return dict(
+                file_path = abs_file,
+                base_directory = base_directory,
+                extension = extension,
+                base_name = base_name,
+                directory = directory
+                )

@@ -8,6 +8,7 @@ class QChemInp(QMInp):
     """
 
     ext = "in"
+    program = "qchem"
 
     jobtype = "sp"
     jobtype2 = ""

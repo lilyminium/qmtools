@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+
+import argparse
+import sys
+from tools import CopyFilesBack
+
+
+parser = argparse.ArgumentParser(add_help=True, description = 'copies files back from Raijin')
+parser.add_argument('-sec',
+                        dest='seconds',
+                        type=int,
+                        help='from the last n seconds')
+parser.add_argument('-min', 
+                        type=int, 
+                        dest="minutes",
+                        help='from the last n minutes')
+parser.add_argument('-hr', 
+                        type=int, 
+                        dest="hours",
+                        help='from the last n hours')
+parser.add_argument('-d', 
+                        type=int, 
+                        dest="days",
+                        help='from the last n days')
+parser.add_argument('-w', 
+                        type=int, 
+                        dest="weeks",
+                        help='from the last n weeks')
+
+args = parser.parse_args(sys.argv[1:])
+CopyFilesBack(vars(args))
