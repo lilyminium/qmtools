@@ -34,7 +34,7 @@ def utc2local(utc):
 
 class CopyFilesBack:
     def __init__(self, clear_home=False, clear_remote=False, clear_all=False, include_oe=False, verbose=True, **after):
-        self.now = datetime.utcnow().replace(tzinfo=TZ_UTC)
+        self.now = datetime.utcnow()
         self.include_oe = include_oe
         self.verbose = verbose
         self.__dict__.update(get_environment())

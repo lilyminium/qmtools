@@ -4,7 +4,7 @@ qmin: crin2
 
 qdelall: delete Raijin jobs by name/status/queue/whatever.
 
-pysub: submit jobs from input files. Written to be very easy to link to qmin, which I will do at some point.
+pysub: submit jobs from input files. Written to be very easy to link to qmin, which I will do at some point. Also will eventually dual submit to Iodine.
 
 retrieve: retrieve output from Raijin. Will potentially make a daemon for this.
 
@@ -82,3 +82,17 @@ Written to b_an/aryl_urea_nitro_a2.MP2_6-31pGd_water.com
     8502785   /short/q95/lxw507/a_an/aryl_urea_Cl_CF3_a1.MP2_GTMP2LARGE_water.job
 ```
 
+```bash
+>>> retrieve --oe
+    Looking for all jobs completed after Wed Jul 18 09:14:23 2018
+    /Users/lily/pydev/pka_new/clcf3/t1/aryl_urea_Cl_CF3_a1.MP2_6-31pGd_water.log
+    /Users/lily/pydev/pka_new/clcf3/t1/aryl_urea_Cl_CF3_a1.MP2_6-31pGd_water.job.o8502881
+    Done.
+>>>retrieve --oe
+    Looking for all jobs completed after Wed Jul 18 09:32:37 2018
+    Done.
+>>>retrieve -min 20
+    Looking for all jobs completed after Wed Jul 18 09:16:25 2018
+    /Users/lily/pydev/pka_new/clcf3/t1/aryl_urea_Cl_CF3_a1.MP2_6-31pGd_water.log
+    Done.
+```
