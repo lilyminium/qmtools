@@ -1,6 +1,12 @@
 # qmtools
 
 qmin: crin2
+qdelall: delete Raijin jobs by name/status/queue/whatever.
+pysub: submit jobs from input files. Written to be very easy to link to qmin, which I will do at some point.
+retrieve: retrieve output from Raijin. Will potentially make a daemon for this.
+binlink: Got tired of manually simlinking everything, so binlink stuff for easy usage.
+
+
 
 qmin --help gives you all the command line options. Bulk create jobs without interactivity (which can still be turned on if needed). --show is a good way to check your job files without looking for them. 
 
@@ -52,3 +58,23 @@ Written to a_an/aryl_urea_nitro_a1.MP2_6-31pGd_water.com
 
 Written to b_an/aryl_urea_nitro_a2.MP2_6-31pGd_water.com
 ```
+
+```bash
+>>> pysub *.com
+    Input: aryl_urea_Cl_CF3_a1.MP2_6-31pGd.com
+    walltime=48:00:00, jobfs=26000MB, vmem=8500MB, queue=normal, ncpus=4
+    8502780   /short/q95/lxw507/a_an/aryl_urea_Cl_CF3_a1.MP2_6-31pGd.job
+
+    Input: aryl_urea_Cl_CF3_a1.MP2_6-31pGd_water.com
+    walltime=48:00:00, jobfs=26000MB, vmem=8500MB, queue=normal, ncpus=4
+    8502781   /short/q95/lxw507/a_an/aryl_urea_Cl_CF3_a1.MP2_6-31pGd_water.job
+
+    Input: aryl_urea_Cl_CF3_a1.MP2_GTMP2LARGE.com
+    walltime=48:00:00, jobfs=26000MB, vmem=8500MB, queue=normal, ncpus=4
+    8502782   /short/q95/lxw507/a_an/aryl_urea_Cl_CF3_a1.MP2_GTMP2LARGE.job
+
+    Input: aryl_urea_Cl_CF3_a1.MP2_GTMP2LARGE_water.com
+    walltime=48:00:00, jobfs=26000MB, vmem=8500MB, queue=normal, ncpus=4
+    8502785   /short/q95/lxw507/a_an/aryl_urea_Cl_CF3_a1.MP2_GTMP2LARGE_water.job
+```
+
