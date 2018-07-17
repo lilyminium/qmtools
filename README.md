@@ -1,10 +1,14 @@
 # qmtools
 
 qmin: crin2
+
 qdelall: delete Raijin jobs by name/status/queue/whatever.
+
 pysub: submit jobs from input files. Written to be very easy to link to qmin, which I will do at some point.
+
 retrieve: retrieve output from Raijin. Will potentially make a daemon for this.
-binlink: Got tired of manually simlinking everything, so binlink stuff for easy usage.
+
+binlink: Got tired of manually simlinking everything, so binlink stuff for easy usage. You will have to simlink this to binlink anywhere. :(. This also assumes that $HOME/bin is in your path, which it should be.
 
 
 
