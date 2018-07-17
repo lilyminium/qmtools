@@ -12,9 +12,9 @@ iodine = dict(
 raijin = dict(
     constants = dict(
                     gaussian_base="/apps/gaussian",
-                    gaussian_version="09b01", # usarj:  09b01,
+                    gaussian_version="g09e01", 
                     qchem_base="/apps/qchem",
-                    qchem_version="5.0-broadwell", # usarj:  4.3,
+                    qchem_version="5.0-sandybridge", # usarj:  4.3,
                     molpro_base="/apps/molpro",
                     molpro_version="2015.1",  # usarj:  2015.1,
                     ssh_home="ssh -t -q {RJ_UNAME}@raijin.nci.org.au",
@@ -22,9 +22,9 @@ raijin = dict(
                     ),
     
     cmds = dict(
-                    gaussian = "{gaussian_base}/{gaussian_version} < {base_name}.com >& {base_name}.log",
+                    gaussian = "{gaussian_base}/{gaussian_version}/g09/g09 < {base_name}.com >& {base_name}.log",
                     molpro = "molpro -o {jobdir}.out -I $PBS_JOBFS/{base_directory} -W $PBS_JOBFS/{base_directory} -d $PBS_JOBFS/{base_directory} -n $PBS_NCPUS {base_name}.ini",
-                    qchem = "{qchem_base}/{qchem_version} {base_name}.in {base_name}.our {base_name}.mo"
+                    qchem = "time {qchem_base}/{qchem_version}/bin/qchem {base_name}.in {base_name}.out {base_name}.mo"
                     ),
 
     setup = dict(

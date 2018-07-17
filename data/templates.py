@@ -21,5 +21,5 @@ echo 'ngpus     : {ngpus}'
 
 {program_cmd}
 /opt/pbs/default/bin/pbs_rusage $PBS_JOBID >> $PBS_JOBID.log
-echo "$(date -u) ||| %PBS_JOBID ||| $PWD ||| {base_name}.{out_extension}" >> $HOME/.recordfile
+echo "$(date -u) ||| $PBS_JOBID ||| $PWD ||| {base_name}.{out_extension}" >> $HOME/.recordfile
 """

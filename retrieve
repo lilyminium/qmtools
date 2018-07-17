@@ -26,6 +26,29 @@ parser.add_argument('-w',
                         type=int, 
                         dest="weeks",
                         help='from the last n weeks')
+parser.add_argument('--clear-home', 
+                        action="store_true",
+                        dest="clear_home",
+                        help='clear record files on home computer')
+parser.add_argument('--clear-remote', 
+                        action="store_true",
+                        dest="clear_remote",
+                        help='clear record files on remote computer')
+parser.add_argument('--clearall', 
+                        action="store_true",
+                        dest="clear_all",
+                        help='clear record files on all computers')
+parser.add_argument('--oe', 
+                        action="store_true",
+                        dest="include_oe",
+                        help='Copy back stdout and stderr files as well.')
 
 args = parser.parse_args(sys.argv[1:])
-CopyFilesBack(vars(args))
+dct = vars(args)
+# dct = {}
+# dct["clear_home"] = after.pop("clear_home")
+# dct["clear_all"] = after.pop("clear_all")
+# dct["clear_remote"] = after.pop("clear_remote")
+# dct["oe"]
+# dct["after"] = after
+CopyFilesBack(**dct)

@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+
+import subprocess
+import os
+import argparse
+import sys
+from tools import rj_del_by_var
+
+parser = argparse.ArgumentParser("Delete all jobs. Accepts regex")
+parser.add_argument('-id',  
+                        default=".*",
+                        dest="jobid",
+                        help='Job ID'
+                        )
+parser.add_argument('-q',  
+                        default=".*",
+                        dest="queue",
+                        help='Queue'
+                        )
+parser.add_argument('-name',  
+                        default=".*",
+                        dest="jobname",
+                        help='Job name'
+                        )
+parser.add_argument('-sessid',  
+                        default=".*",
+                        dest="sessid",
+                        help='SessID'
+                        )
+parser.add_argument('-nds',  
+                        default=".*",
+                        dest="nds",
+                        help='NDS'
+                        )
+parser.add_argument('-tsk',  
+                        default=".*",
+                        dest="tsk",
+                        help='TSK'
+                        )
+parser.add_argument('-mem',  
+                        default=".*",
+                        dest="memory",
+                        help='Required memory'
+                        )
+parser.add_argument('-wall',  
+                        default=".*",
+                        dest="walltime",
+                        help='Walltime requested'
+                        )
+parser.add_argument('-run',  
+                        default=".*",
+                        dest="runtime",
+                        help='Run time'
+                        )
+parser.add_argument('-s',  
+                        default=".*",
+                        dest="status",
+                        help='Job status (Q or R)'
+                        )
+parser.add_argument('-u',  
+                        default=".*",
+                        dest="username",
+                        help='Username'
+                        )
+parser.add_argument('--cond',  
+                        default="all",
+                        dest="cond_",
+                        choices=["any", "all"],
+                        help='Delete jobs that fulfill all vs. any the requirements. (Default: all)'
+                        )
+
+
+args = parser.parse_args(sys.argv[1:])
+
+cond_to_python = dict(
+                    any=any,
+                    all=all
+                    )
+dct = vars(args)
+cond = cond_to_python[dct.pop("cond_")]
+rj_del_by_var(cond, **dct)
+print("")

@@ -1,6 +1,6 @@
 import re
 import datetime
-from utils import regex_coords, get_environment, file_details
+from utils import regex_coords, get_environment, file_details, printyellow, printdarkcyan
 from data import rj_template, raijin, raijin, get_params
 import subprocess
 
@@ -19,7 +19,7 @@ class QJob:
     _walltime = WALLTIME_MIN
     _ncpus    = NCPUS_MIN
     ngpus    = NGPUS_MIN
-    _jobfs    = JOBFS_MIN
+    _jobfs_mb    = JOBFS_MIN
     queue     = ""
     text = ""
 
@@ -49,9 +49,9 @@ class QJob:
     @walltime.setter
     def walltime(self, value):
         try:
-            self._jobfs_mb = int(value)
+            self._walltime = int(value)
         except TypeError:
-            self._jobfs_mb = int(value(self.n_heavy_atoms))
+            self._walltime = int(value(self.n_heavy_atoms))
 
     @property
     def ncpus(self):
@@ -64,9 +64,10 @@ class QJob:
         self._ncpus = int(value)
     
 
-    def __init__(self, program, elements, theory, out_extension, subdir="",**kwargs):
+    def __init__(self, program, elements, theory, out_extension, file_path="", subdir="",**kwargs):
         self.program = program
         self.theory = theory
+        self.file_path = file_path
         self.out_extension = out_extension
         if subdir:
             if subdir[-1] != "/":
@@ -85,6 +86,7 @@ class QJob:
 
     @classmethod
     def from_file(cls, file, **kwargs):
+        printyellow(f"    Input: {file}")
         # get program
         extensions = {
             "com": ("gaussian", "log"),
@@ -123,6 +125,11 @@ class QJob:
         self.dct["queue"] = self.queue
         self.dct['base_directory'] = self.base_directory
         self.dct['base_name'] = self.base_name
+        self.dct['out_extension'] = self.out_extension
+        txt = "    walltime={walltime}, jobfs={jobfs}MB, vmem={vmem}MB, queue={queue}, ncpus={ncpus}"
+        if self.ngpus:
+            txt.append(", ngpus={ngpus}")
+        printdarkcyan(txt.format(**self.dct))
 
     def guess_parameters(self):
         for k, v in get_params(self.n_heavy_atoms, self.theory, self.program).items():
@@ -136,20 +143,22 @@ class QJob:
 
     def submit(self):
         subprocess.call("{ssh_home} 'mkdir -p {wdir}'".format(**self.dct), shell=True)
-        subprocess.call(f"scp -q {self.job_name} {self.file_path} {self.dct['rj_wdir']}", shell=True)
-        subprocess.call("{ssh_home} 'cd {wdir} && qsub {base_name}.job'".format(**self.dct), shell=True)
+        subprocess.call(f"scp -q {self.job_name} {self.file_path} {self.dct['rj_wdir']} 2>/dev/null", shell=True)
+        proc = subprocess.Popen("{ssh_home} 'cd {wdir} && qsub {base_name}.job'".format(**self.dct), shell=True, stdout=subprocess.PIPE)
+        jobid = str(proc.communicate()[0]).split(".")[0][2:]
+        printdarkcyan(f"    {jobid:<9} " + "{wdir}/{base_name}.job\n".format(**self.dct))
 
-    def update_recordfile(self)
+    def update_recordfile(self):
         with open(f"{self.dct['HOME']}/.recordfile", 'r') as f:
             contents = f.readlines()
 
-        contents.append(f"{self.dct['wdir']} ||| {self.dct['base_name']}{self.out_extension} ||| {self.directory}\n")
+        contents.append(f"{self.dct['wdir']} ||| {self.dct['base_name']}.{self.out_extension} ||| {self.directory}\n")
         newlines = []
         for c in contents:
             if c not in newlines:
                 newlines.append(c)
         with open(f"{self.dct['HOME']}/.recordfile", 'w') as f:
-            f.write(newlines)
+            f.write("".join(contents))
 
 
 
@@ -161,12 +170,12 @@ class RaijinQJob(QJob):
 
     def get_template_kwargs(self):
         super().get_template_kwargs()
-        self.dct['wdir'] = "short/{RJ_PROJ}/{RJ_UNAME}/{dir}{base_directory}".format(dir=self.dir,**self.dct)
+        self.dct['wdir'] = "/short/{RJ_PROJ}/{RJ_UNAME}/{dir}{base_directory}".format(dir=self.dir,**self.dct)
         for k, v in raijin['constants'].items():
             self.dct[k] = v.format(**self.dct)
         #self.dct.update(raijin['constants'])
-        self.dct['program_setup'] = raijin['cmds'][self.program].format(**self.dct)
-        self.dct['program_cmd'] = raijin['setup'][self.program].format(**self.dct)
+        self.dct['program_setup'] = raijin['setup'][self.program].format(**self.dct)
+        self.dct['program_cmd'] = raijin['cmds'][self.program].format(**self.dct)
         
 
 

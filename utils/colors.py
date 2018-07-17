@@ -1,5 +1,5 @@
 
-textcolors = dict(PURPLE = '\033[95m',
+__COLORS = dict(PURPLE = '\033[95m',
                     CYAN = '\033[96m',
                     DARKCYAN = '\033[36m',
                     BLUE = '\033[94m',
@@ -11,5 +11,14 @@ textcolors = dict(PURPLE = '\033[95m',
                     END = '\033[0m')
 
 def style(text, *color):
-    colors = [textcolors.get(x.upper(), '') for x in color]
-    return f"{''.join(colors)}{text}{textcolors['END']}"
+    colors = [__COLORS.get(x.upper(), '') for x in color]
+    return f"{''.join(colors)}{text}{__COLORS['END']}"
+
+def printyellow(text):
+    print(style(text, "yellow"))
+
+def printred(text):
+    print(style(text, "red"))
+
+def printdarkcyan(text):
+    print(style(text, "darkcyan"))

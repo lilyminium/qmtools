@@ -3,10 +3,12 @@
 import argparse
 import sys
 from formats.job import RaijinQJob
+from utils.colors import style
+import subprocess
 
 parser = argparse.ArgumentParser(add_help=True, description = 'submits files to Raijin')
 parser.add_argument('file', 
-                        nargs="+",
+                        nargs="*",
                         help='input file -- anything parseable by mdtraj or a Gaussian log file')
 parser.add_argument('-vmem', 
                         type=int, 
@@ -37,8 +39,13 @@ parser.add_argument('-subdir',
                         type=str,
                         help="subdirectory of short for files to go into"
                         )
+parser.add_argument('--del',
+                        dest="subdir",
+                        default="",
+                        type=str,
+                        help="subdirectory of short for files to go into"
+                        )
 
-print(sys.argv)
 
 args = parser.parse_args(sys.argv[1:])
 
