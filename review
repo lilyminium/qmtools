@@ -17,6 +17,12 @@ parser.add_argument('-r',
                         dest='pattern',
                         help='Review files matching this pattern (incompatible with index)'
                         )
+parser.add_argument('-n',
+                        dest='nlines',
+                        default=30,
+                        type=int,
+                        help='Last n lines (default 50)'
+                        )
 args = parser.parse_args(sys.argv[1:])
 
 dct = get_environment()
@@ -24,18 +30,20 @@ review_file = "{HOME}/.review.json".format(**dct)
 
 
 
-def print_file(path):
+def print_file(path, nlines):
     with open(path, 'r') as f:
         print(style(f"     --- {path} --- ", "darkcyan"))
-        print(f.read())
+        contents = f.readlines()
+        from_line = min(nlines, len(contents))
+        print("".join(contents[-from_line:]))
 
-def try_print_file(path):
+def try_print_file(path, nlines):
     try:
-        print_file(path)
+        print_file(path, nlines)
     except:
         pass
 
-def review(index, pattern):
+def review(index, pattern, nlines=50):
     try:
         with open(review_file, 'r') as infile:
             paths = json.load(infile)
@@ -43,14 +51,14 @@ def review(index, pattern):
         return
     if index:
         for i in index:
-            try_print_file(paths[i])
+            try_print_file(paths[i], nlines)
 
     elif pattern:
         for p in paths:
             if re.search(pattern, p):
-                try_print_file(p)
+                try_print_file(p, nlines)
     else:
         for p in paths:
-            try_print_file(p)
+            try_print_file(p, nlines)
 
-review(args.index, args.pattern)
+review(args.index, args.pattern, args.nlines)
