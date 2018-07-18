@@ -84,13 +84,13 @@ GAUSSIAN = dict(
     mp2 = dict(
             vmem_mb  = 8500,
             ncpus    = 4,
-            jobfs_mb = lambda x: x*2,
+            jobfs_mb = lambda x: x*12,
             walltime = lambda x: x/2,
             ),
     gtmp2large = dict(
             vmem_mb  = 8500,
             ncpus    = 4,
-            jobfs_mb = lambda x: x*2,
+            jobfs_mb = lambda x: x*12,
             walltime = lambda x: x*5,
             ),
         )
@@ -101,6 +101,10 @@ GAUSSIAN["m05"] = GAUSSIAN["m062x"]
 
 def get_params(n_heavy_atoms, theory, program="gaussian"):
     if program == "gaussian":
+        order = "ccsd gtmp2large mp2 m062x".split()
+        for t in order:
+            if t in theory.lower():
+                return GAUSSIAN[t]
         for k, v in GAUSSIAN.items():
             if k.lower() in theory.lower():
                 return v
