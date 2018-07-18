@@ -24,8 +24,8 @@ N_ATOMS_20 = dict(
                 qchem = dict(
                             queue    = "normalbw",
                             vmem_mb  = 8000,
-                            ncpus    = 1,
-                            jobfs_mb = 40000,
+                            ncpus    = 4,
+                            jobfs_mb = 80000,
                             walltime = 96
                             ),
                 )
@@ -84,13 +84,13 @@ GAUSSIAN = dict(
     mp2 = dict(
             vmem_mb  = 8500,
             ncpus    = 4,
-            jobfs_mb = lambda x: x*12,
+            jobfs_mb = lambda x: x*4,
             walltime = lambda x: x/2,
             ),
     gtmp2large = dict(
             vmem_mb  = 8500,
             ncpus    = 4,
-            jobfs_mb = lambda x: x*12,
+            jobfs_mb = lambda x: x*20,
             walltime = lambda x: x*5,
             ),
         )

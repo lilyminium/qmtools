@@ -5,9 +5,11 @@ from data import rj_template, raijin, raijin, get_params
 import subprocess
 
 JOBFS_MIN = 5000
-JOBFS_MAX = 250000
+JOBFS_MAX = 2000000
 
-WALLTIME_MAX = 96
+WALLTIME_MAX = dict(
+                    normal=48,
+                    normalbw=96)
 WALLTIME_MIN = 1
 
 NCPUS_MIN = 1
@@ -42,8 +44,9 @@ class QJob:
     def walltime(self):
         if self._walltime < WALLTIME_MIN:
             return WALLTIME_MIN
-        if self._walltime > WALLTIME_MAX:
-            return WALLTIME_MAX
+        max_walltime = WALLTIME_MAX.get(self.queue, WALLTIME_MAX["normal"])
+        if self._walltime > max_walltime:
+            return max_walltime
         return self._walltime
 
     @walltime.setter
@@ -109,7 +112,7 @@ class QJob:
         # get theory if program is Gaussian
         if program == "gaussian":
             theory_line = [x for x in clean if x.startswith("#")]
-            theory = theory_line[0].split("/")[0].split("#")[1].strip()
+            theory = theory_line[0].split("SCF")[0].split("#")[1].strip()
         else:
             theory = None
 
@@ -117,18 +120,18 @@ class QJob:
 
     def get_template_kwargs(self):
         self.dct = get_environment()
-        self.dct['walltime'] = f"{self.walltime}:00:00"
+        self.dct["queue"] = self.queue
+        self.dct['walltime'] = f"{self.walltime:d}:00:00"
         self.dct['ncpus'] = self.ncpus
         self.dct['ngpus'] = self.ngpus
         self.dct['jobfs'] = self.jobfs_mb
         self.dct['vmem'] = self.vmem_mb
-        self.dct["queue"] = self.queue
         self.dct['base_directory'] = self.base_directory
         self.dct['base_name'] = self.base_name
         self.dct['out_extension'] = self.out_extension
-        txt = "    walltime={walltime}, jobfs={jobfs}MB, vmem={vmem}MB, queue={queue}, ncpus={ncpus}"
+        txt = "    walltime={walltime}, jobfs={jobfs:d}MB, vmem={vmem:d}MB, queue={queue}, ncpus={ncpus:d}"
         if self.ngpus:
-            txt.append(", ngpus={ngpus}")
+            txt.append(", ngpus={ngpus:d}")
         printdarkcyan(txt.format(**self.dct))
 
     def guess_parameters(self):

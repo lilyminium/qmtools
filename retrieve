@@ -7,27 +7,27 @@ from tools import CopyFilesBack
 
 parser = argparse.ArgumentParser(add_help=True, description = 'copies files back from Raijin')
 
-parser.add_argument('-sec',
+parser.add_argument('-s', '--seconds',
                         dest='seconds',
                         type=int,
                         help='from the last n seconds')
 
-parser.add_argument('-min', 
+parser.add_argument('-m', '--minutes',
                         type=int, 
                         dest="minutes",
                         help='from the last n minutes')
 
-parser.add_argument('-hr', 
+parser.add_argument('-hr', '--hour', 
                         type=int, 
                         dest="hours",
                         help='from the last n hours')
 
-parser.add_argument('-d', 
+parser.add_argument('-d', '--days',
                         type=int, 
                         dest="days",
                         help='from the last n days')
 
-parser.add_argument('-w', 
+parser.add_argument('-w', '--weeks',
                         type=int, 
                         dest="weeks",
                         help='from the last n weeks')
