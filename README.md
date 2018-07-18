@@ -96,3 +96,27 @@ Written to b_an/aryl_urea_nitro_a2.MP2_6-31pGd_water.com
     /Users/lily/pydev/pka_new/clcf3/t1/aryl_urea_Cl_CF3_a1.MP2_6-31pGd_water.log
     Done.
 ```
+```bash
+>>> retrieve -min 50 --oe
+    Looking for all jobs completed after Wed Jul 18 12:42:27 2018
+    /Users/lily/pydev/pka_new/clcf3/a_an/aryl_urea_Cl_CF3_a1.CCSD-T_6-31pGd.out
+    /Users/lily/pydev/pka_new/clcf3/a_an/aryl_urea_Cl_CF3_a1.CCSD-T_6-31pGd.job.o8510325
+    Done.
+
+>>> review
+         --- /Users/lily/pydev/pka_new/clcf3/a_an/aryl_urea_Cl_CF3_a1.CCSD-T_6-31pGd.out ---
+
+         --- /Users/lily/pydev/pka_new/clcf3/a_an/aryl_urea_Cl_CF3_a1.CCSD-T_6-31pGd.job.o8510325 ---
+    machine   : Raijin
+    queue     : normal
+    jobfs     : 30000MB
+    ncpus     : 1
+    ngpus     : 0
+    /apps/qchem/5.0-broadwell/exe/qcprog.exe .aryl_urea_Cl_CF3_a1.CCSD-T_6-31pGd.in.20867.qcin.1 /jobfs/local/8510325.r-man2/aryl_urea_Cl_CF3_a1.CCSD-T_6-31pGd.mo/
+    Illegal instruction
+    Error: in the serial run
+
+    real    0m0.406s
+    user    0m0.029s
+    sys     0m0.088s
+```
