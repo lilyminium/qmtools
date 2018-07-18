@@ -8,6 +8,8 @@ pysub: submit jobs from input files. Written to be very easy to link to qmin, wh
 
 retrieve: retrieve output from Raijin. Will potentially make a daemon for this.
 
+review: print output of retrieve.
+
 binlink: Got tired of manually simlinking everything, so binlink stuff for easy usage. You will have to simlink this to binlink anywhere. :(. This also assumes that $HOME/bin is in your path, which it should be.
 
 
