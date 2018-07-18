@@ -45,7 +45,7 @@ parser.add_argument('--out',
                         dest='patterns',
                         action="append_const",
                         const=".*\.out$",
-                        help='Print .o* or .e* stdout/err files (shortcut).'
+                        help='Print .out files (shortcut).'
                         )
 
 args = parser.parse_args(sys.argv[1:])
