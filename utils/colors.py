@@ -12,7 +12,7 @@ __COLORS = dict(PURPLE = '\033[95m',
 
 def style(text, *color):
     colors = [__COLORS.get(x.upper(), '') for x in color]
-    return f"{''.join(colors)}{text}{__COLORS['END']}"
+    return f"{''.join(colors)}{text}{__COLORS['END']}{__COLORS['END']}"
 
 def printyellow(text):
     print(style(text, "yellow"))

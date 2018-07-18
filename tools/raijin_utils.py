@@ -22,19 +22,26 @@ def get_rj_env():
 
 def get_rj_queued(show=True):
     dct = get_rj_env()
-    proc = subprocess.Popen("{SSH} '{QUEUED}'".format(**dct), shell=True, stdout=subprocess.PIPE)
-    jobstr = str(proc.communicate()[0]).strip()[2:-1]
-    jobs = jobstr.split("\n")[0].split("\\r\\n") # communicate() returns a tuple (stdout_data, stderr_data)
-    real_jobs = [x for x in jobs if x]
+    try:
+        output = str(subprocess.check_output("{SSH} {QUEUED}".format(**dct), shell=True))[2:-1]
+    except subprocess.CalledProcessError:
+        output = ""
+
+    if output:
+        jobstr = [x.strip().strip('\\r').strip() for x in output.split("\\n")]
+        jobs = [x for x in jobstr if x]
+    else:
+        jobs = []
+
     if show:
-        if real_jobs:
-            print("\n".join(real_jobs))
+        if jobs:
+            print("\n".join(jobs))
         else:
             printred("No jobs available.")
-    return real_jobs
+    return jobs
 
 
-def rj_del_by_var(cond=any, **by_vars):
+def rj_del_by_var(cond=any, test=False, **by_vars):
     dct = get_rj_env()
     SSH = dct['SSH']
     qdel = dct['QDEL']
@@ -49,13 +56,13 @@ def rj_del_by_var(cond=any, **by_vars):
         translate = {".*":"*"}
 
         kwargs = "\n".join([f"      {k} = {translate.get(v, v)}" for k, v in by_vars.items()])
-        printyellow(f"""  Deleting if {cond.__name__}: \n{kwargs}
+        printyellow(f"""\n  Deleting if {cond.__name__}: \n{kwargs}
             """)
 
         for jobid, params in job_vars:
             if cond([re.search(regex, txt) for regex, txt in params]):
-                subprocess.Popen(f"{SSH} '{qdel}' {jobid}", shell=True)
+                if not test:
+                    subprocess.call(f"{SSH} '{qdel}' {jobid}", shell=True)
                 print(f"Deleted {jobid}")
-
         get_rj_queued()
     return
