@@ -6,10 +6,11 @@ N_ATOMS_10 = dict(
                             walltime = 48
                             ),
                 qchem = dict(
-                            vmem_mb  = 2200,
+                            queue    = "normalbw",
+                            vmem_mb  = 4000,
                             ncpus    = 1,
-                            jobfs_mb = 10000,
-                            walltime = 20
+                            jobfs_mb = 20000,
+                            walltime = 60
                             ),
                 )
 
@@ -21,10 +22,11 @@ N_ATOMS_20 = dict(
                             walltime = 48
                             ),
                 qchem = dict(
-                            vmem_mb  = 4000,
+                            queue    = "normalbw",
+                            vmem_mb  = 8000,
                             ncpus    = 1,
-                            jobfs_mb = 20000,
-                            walltime = 36
+                            jobfs_mb = 40000,
+                            walltime = 96
                             ),
                 )
 
@@ -36,10 +38,11 @@ N_ATOMS_40 = dict(
                             walltime = 48
                             ),
                 qchem = dict(
-                            vmem_mb  = 4000,
+                            queue    = "normalbw",
+                            vmem_mb  = 10000,
                             ncpus    = 1,
-                            jobfs_mb = 20000,
-                            walltime = 48
+                            jobfs_mb = 80000,
+                            walltime = 96
                             ),
                 )
 
@@ -51,10 +54,11 @@ N_ATOMS_MORE = dict(
                             walltime = 150
                             ),
                     qchem = dict(
+                            queue    = "normalbw",
                             vmem_mb  = 4000,
                             ncpus    = 1,
                             jobfs_mb = 20000,
-                            walltime = 48
+                            walltime = 96
                             ),
                 )
 
@@ -81,7 +85,7 @@ GAUSSIAN = dict(
             vmem_mb  = 8500,
             ncpus    = 4,
             jobfs_mb = lambda x: x*2,
-            walltime = lambda x: x*5,
+            walltime = lambda x: x/2,
             ),
     gtmp2large = dict(
             vmem_mb  = 8500,
@@ -97,7 +101,10 @@ GAUSSIAN["m05"] = GAUSSIAN["m062x"]
 
 def get_params(n_heavy_atoms, theory, program="gaussian"):
     if program == "gaussian":
-        return GAUSSIAN[theory.lower()]
+        for k, v in GAUSSIAN.items():
+            if k.lower() in theory.lower():
+                return v
+        #return GAUSSIAN[theory.lower()]
     else:
         if n_heavy_atoms <= 10:
             return N_ATOMS_10[program]

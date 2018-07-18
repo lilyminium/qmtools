@@ -1,13 +1,12 @@
 
 #!/usr/bin/env python3
 
-import argparse
-import sys
 import subprocess
-from datetime import datetime, timedelta, timezone
-import time
-from utils import get_environment, style
+import json
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+from utils import get_environment, style
+
 
 DEFAULT_DELTA_WEEKS = 10
 COMMENT_LINES = """# Record file for pysub and retrieve.
@@ -27,19 +26,15 @@ def printerr(err):
 def printinfo(info):
     print(style(info, STYLE_INFO))
 
-def utc2local(utc):
-    now = time.time()
-    offset = datetime.fromtimestamp(now)-datetime.fromtimestamp(now)
-    return utc+offset
 
 class CopyFilesBack:
-    def __init__(self, clear_home=False, clear_remote=False, clear_all=False, include_oe=False, verbose=True, **after):
+    def __init__(self, clear_home=False, clear_remote=False, clear_all=False, include_oe=False, **after):
         self.now = datetime.utcnow()
         self.include_oe = include_oe
-        self.verbose = verbose
         self.__dict__.update(get_environment())
         self.remote = f"{self.RJ_UNAME}@raijin.nci.org.au"
         self.remote_record = f"{self.RJ_UNAME}@raijin.nci.org.au:/home/{self.REMOTE_DIR}/{self.RJ_UNAME}/.recordfile"
+        self.review = []
 
         self.copy_files_back(after)
 
@@ -69,9 +64,16 @@ class CopyFilesBack:
             self.get_after_time(after)
             self.get_files()
             self.update_last_checked()
+            self.write_review()
             printinfo("Done.")
+
         except:
             printerr("No files copied.")
+
+    def write_review(self):
+        with open(f"{self.HOME}/.review.json", 'w') as outfile:
+            json.dump(self.review, outfile)
+
 
     def update_last_checked(self):
         with open(f"{self.HOME}/.recordfile_last_checked", 'w') as f:
@@ -167,6 +169,7 @@ class CopyFilesBack:
     def single_scp(self, remote_path, file, home_dir):
         try:
             subprocess.check_output(f"scp -q {self.remote}:{remote_path}/{file} {home_dir} 2>/dev/null", shell=True)
+            self.review.append(f"{home_dir}/{file}")
             print(f"{home_dir}/{file}")
         except (FileNotFoundError, subprocess.CalledProcessError):
             pass

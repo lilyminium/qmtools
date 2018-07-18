@@ -6,15 +6,6 @@ import os
 from formats import qm_packages
 from utils.colors import style
 
-theory = {
-    "M062X" : "M062X",
-    "CSD"   : "CSD",
-    "QCI"   : "QCI",
-    "MP2"   : "MP2",
-    "HF"    : "HF",
-    "CCSDT" : "CCSDT",
-    "CCSD-T": "CCSD(T)"
-}
 
 parser = argparse.ArgumentParser(add_help=True, description = 'does stuff with output files')
 parser.add_argument('file', 
@@ -28,31 +19,3 @@ parser.add_argument('-o',
 
 
 args = parser.parse_args(sys.argv[1:])
-
-def get_environment():
-    dct = {}
-    needed = "HOME REMOTE_DIR RJ_UNAME".split()
-    for n in needed:
-        dct[n] = os.environ.get(n)
-    if dct["RJ_UNAME"] is None:
-        dct["RJ_UNAME"] = os.environ.get("REMOTE_USER")
-    return dct
-
-env = get_environment()
-
-
-print(style(f"""
-    #######################################
-    #        STARTING   JOB  INPUT        #
-    #######################################
-
-    Software: {args.program.capitalize()}
-    """, "yellow"))
-
-vargs = dict(**vars(args))
-vargs['theory'] = theory[vargs['theory']]
-vargs.pop("file")
-
-for file in args.file:
-    qm_packages[args.program](file, **vargs, **env)
-

@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+
+import argparse
+import sys
+import re
+import json
+from utils import get_environment, style
+
+parser = argparse.ArgumentParser(add_help=True, description = 'Review files last copied back')
+parser.add_argument('-ind',
+                        dest='index',
+                        nargs='+', 
+                        type=int,
+                        help='file index (from output of retrieve)'
+                        )
+parser.add_argument('-r',
+                        dest='pattern',
+                        help='Review files matching this pattern (incompatible with index)'
+                        )
+args = parser.parse_args(sys.argv[1:])
+
+dct = get_environment()
+review_file = "{HOME}/.review.json".format(**dct)
+
+
+
+def print_file(path):
+    with open(path, 'r') as f:
+        print(style(f"     --- {path} --- ", "darkcyan"))
+        print(f.read())
+
+def try_print_file(path):
+    try:
+        print_file(path)
+    except:
+        pass
+
+def review(index, pattern):
+    try:
+        with open(review_file, 'r') as infile:
+            paths = json.load(infile)
+    except:
+        return
+    if index:
+        for i in index:
+            try_print_file(paths[i])
+
+    elif pattern:
+        for p in paths:
+            if re.search(pattern, p):
+                try_print_file(p)
+    else:
+        for p in paths:
+            try_print_file(p)
+
+review(args.index, args.pattern)
