@@ -9,13 +9,11 @@
 * **review**    : print output of retrieve.
 * **binlink**   : Save time simlinking! Links to $HOME/bin
 
-Every one of these has a --help section.
+Every one of these has a --help section. None have docstrings or comments.
 
-## Example:
+## Examples:
 ```bash
->>ls *
-```
-```
+>>> ls *
     a_an:
     aryl_urea_nitro_a1.M062X.SMD.h2o.opt.log aryl_urea_nitro_a1.M062X.opt.log
 
@@ -24,11 +22,9 @@ Every one of these has a --help section.
 
     n:
     aryl_urea_nitro.M062X.SMD.h2o.opt.log aryl_urea_nitro.M062X.opt.log
-```
-```bash
->>qmin --solvate -c -1 a_an/aryl_urea_nitro_a1.M062X.SMD.h2o.opt.log b_an/aryl_urea_nitro_a2.M062X.SMD.h2o.opt.log
-```
-```
+
+>>> qmin --solvate -c -1 a_an/aryl_urea_nitro_a1.M062X.SMD.h2o.opt.log b_an/aryl_urea_nitro_a2.M062X.SMD.h2o.opt.log
+
     #######################################
     #        STARTING   JOB  INPUT        #
     #######################################
@@ -89,7 +85,7 @@ Written to b_an/aryl_urea_nitro_a2.MP2_6-31pGd_water.com
 >>> retrieve --oe
     Looking for all jobs completed after Wed Jul 18 09:32:37 2018
     Done.
-    
+
 >>> retrieve -min 20
     Looking for all jobs completed after Wed Jul 18 09:16:25 2018
     /Users/lily/pydev/pka_new/clcf3/t1/aryl_urea_Cl_CF3_a1.MP2_6-31pGd_water.log
