@@ -1,22 +1,17 @@
 # qmtools
 
-qmin: crin2
+## The little things in life.
 
-qdelall: delete Raijin jobs by name/status/queue/whatever.
+* **qmin**      : Make job inputs from xyz and log files. (i.e. crin2)
+* **qdelall**   : delete Raijin jobs by name/status/queue/whatever. Uses regex.
+* **pysub**     : submits jobs from input files. Written to be very easy to link to qmin, which I will do at some point. Also will eventually dual submit to Iodine.
+* **retrieve**  : retrieve output from Raijin. Will potentially make a daemon for this.
+* **review**    : print output of retrieve.
+* **binlink**   : Save time simlinking! Links to $HOME/bin
 
-pysub: submit jobs from input files. Written to be very easy to link to qmin, which I will do at some point. Also will eventually dual submit to Iodine.
+Every one of these has a --help section.
 
-retrieve: retrieve output from Raijin. Will potentially make a daemon for this.
-
-review: print output of retrieve.
-
-binlink: Got tired of manually simlinking everything, so binlink stuff for easy usage. You will have to simlink this to binlink anywhere. :(. This also assumes that $HOME/bin is in your path, which it should be.
-
-
-
-qmin --help gives you all the command line options. Bulk create jobs without interactivity (which can still be turned on if needed). --show is a good way to check your job files without looking for them. 
-
-Example:
+## Example:
 ```bash
 >>ls *
 ```
@@ -90,10 +85,12 @@ Written to b_an/aryl_urea_nitro_a2.MP2_6-31pGd_water.com
     /Users/lily/pydev/pka_new/clcf3/t1/aryl_urea_Cl_CF3_a1.MP2_6-31pGd_water.log
     /Users/lily/pydev/pka_new/clcf3/t1/aryl_urea_Cl_CF3_a1.MP2_6-31pGd_water.job.o8502881
     Done.
->>>retrieve --oe
+
+>>> retrieve --oe
     Looking for all jobs completed after Wed Jul 18 09:32:37 2018
     Done.
->>>retrieve -min 20
+    
+>>> retrieve -min 20
     Looking for all jobs completed after Wed Jul 18 09:16:25 2018
     /Users/lily/pydev/pka_new/clcf3/t1/aryl_urea_Cl_CF3_a1.MP2_6-31pGd_water.log
     Done.
