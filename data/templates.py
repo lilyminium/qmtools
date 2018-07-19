@@ -11,6 +11,9 @@ rj_template = """#!/bin/bash
 #PBS -r y
 #PBS -j oe
 
+echo "$(date -u) ||| $PBS_JOBID ||| $PWD ||| {base_name}.{out_extension}" >> $HOME/.recordfile
+
+rm -rf $PBS_JOBFS/{base_directory}
 mkdir -p $PBS_JOBFS/{base_directory}
 {program_setup}
 echo 'machine   : Raijin'
@@ -21,5 +24,5 @@ echo 'ngpus     : {ngpus}'
 
 {program_cmd}
 /opt/pbs/default/bin/pbs_rusage $PBS_JOBID >> $PBS_JOBID.log
-echo "$(date -u) ||| $PBS_JOBID ||| $PWD ||| {base_name}.{out_extension}" >> $HOME/.recordfile
+
 """

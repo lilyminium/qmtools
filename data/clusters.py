@@ -24,7 +24,7 @@ raijin = dict(
     cmds = dict(
                     gaussian = "{gaussian_base}/{gaussian_version}/g09/g09 < {base_name}.com >& {base_name}.log",
                     molpro = "molpro -o {jobdir}.out -I $PBS_JOBFS/{base_directory} -W $PBS_JOBFS/{base_directory} -d $PBS_JOBFS/{base_directory} -n $PBS_NCPUS {base_name}.ini",
-                    qchem = "time {qchem_base}/{qchem_version}/bin/qchem {base_name}.in {base_name}.out {base_name}.mo"
+                    qchem = "time {qchem_base}/{qchem_version}/bin/qchem -nt $PBS_NCPUS {base_name}.in {base_name}.out {base_name}.mo"
                     ),
 
     setup = dict(

@@ -7,16 +7,47 @@ import json
 from utils import get_environment, style
 
 parser = argparse.ArgumentParser(add_help=True, description = 'Review files last copied back')
-parser.add_argument('-ind',
+parser.add_argument('-i', '--index',
                         dest='index',
                         nargs='+', 
                         type=int,
                         help='file index (from output of retrieve)'
                         )
-parser.add_argument('-r',
-                        dest='pattern',
-                        help='Review files matching this pattern (incompatible with index)'
+parser.add_argument('-r', '--regex',
+                        action="append",
+                        dest='patterns',
+                        help='Review files matching this regex (incompatible with index). Can be specified multiple times.'
                         )
+parser.add_argument('-n', '--nlines',
+                        dest='nlines',
+                        default=10,
+                        type=int,
+                        help='Last n lines (default 50)'
+                        )
+parser.add_argument('-f', '--files',
+                        dest='show_files',
+                        action="store_true",
+                        help='Print files available and exit.'
+                        )
+parser.add_argument('--log',
+                        dest='patterns',
+                        action="append_const",
+                        const=".*\.log$",
+                        help='Print log files (shortcut).'
+                        )
+parser.add_argument('--oe',
+                        dest='patterns',
+                        action="append_const",
+                        const=".*\.[oe]\d{5}\d+",
+                        help='Print .o* or .e* stdout/err files (shortcut).'
+                        )
+parser.add_argument('--out',
+                        dest='patterns',
+                        action="append_const",
+                        const=".*\.out$",
+                        help='Print .out files (shortcut).'
+                        )
+
 args = parser.parse_args(sys.argv[1:])
 
 dct = get_environment()
@@ -24,33 +55,38 @@ review_file = "{HOME}/.review.json".format(**dct)
 
 
 
-def print_file(path):
+def print_file(path, nlines):
     with open(path, 'r') as f:
         print(style(f"     --- {path} --- ", "darkcyan"))
-        print(f.read())
+        contents = f.readlines()
+        from_line = min(nlines, len(contents))
+        print("".join(contents[-from_line:]))
 
-def try_print_file(path):
+def try_print_file(path, nlines):
     try:
-        print_file(path)
+        print_file(path, nlines)
     except:
         pass
 
-def review(index, pattern):
+def review(index=[], show_files=False, nlines=10, patterns=[]):
     try:
         with open(review_file, 'r') as infile:
             paths = json.load(infile)
     except:
         return
+    if show_files:
+        print(style("\n".join(paths), "yellow"))
+        return
     if index:
         for i in index:
-            try_print_file(paths[i])
+            try_print_file(paths[i], nlines)
 
-    elif pattern:
+    elif patterns:
         for p in paths:
-            if re.search(pattern, p):
-                try_print_file(p)
+            if any(re.search(regex, p) for regex in patterns):
+                try_print_file(p, nlines)
     else:
         for p in paths:
-            try_print_file(p)
+            try_print_file(p, nlines)
 
-review(args.index, args.pattern)
+review(**vars(args))

@@ -62,17 +62,20 @@ class CopyFilesBack:
         self.tracked_remote_paths = defaultdict(dict)
         try:
             self.get_after_time(after)
-            self.get_files()
+            found_files = self.get_files()
             self.update_last_checked()
-            self.write_review()
-            printinfo("Done.")
-
+            if found_files:
+                self.write_review()
+                printinfo("Done.")
+            else:
+                printerr("     No files copied. review [--help] points to last copied.")
         except:
-            printerr("No files copied.")
+            printerr("     No files copied. review [--help] points to last copied.")
 
     def write_review(self):
         with open(f"{self.HOME}/.review.json", 'w') as outfile:
             json.dump(self.review, outfile)
+        printerr("    review [--help] to review files")
 
 
     def update_last_checked(self):
@@ -140,12 +143,17 @@ class CopyFilesBack:
         self.get_home_recordfile()
         self.get_remote_recordfile()
 
+        copied_any = False
+
         for date_str, pbs_jobid, remote_path, outfile in self.remote_recordfile:
             date = datetime.strptime(date_str, "%a %b %d %H:%M:%S UTC %Y")
             if date > self.after:
-                self.copy_job_back(pbs_jobid, remote_path, outfile)
+                copied_any += self.copy_job_back(pbs_jobid, remote_path, outfile)
+        return copied_any
+
 
     def copy_job_back(self, pbs_jobid, remote_path, outfile):
+        copied = False
         try:
             expected_err = subprocess.check_output(f"ssh -q -t {self.remote} 'qstat -f {pbs_jobid}'", shell=True)
             output = ""
@@ -154,23 +162,25 @@ class CopyFilesBack:
         if "Job has finished" in output:
             try:
                 home_dir = self.tracked_remote_paths[remote_path][outfile]
-                self.single_scp(remote_path, outfile, home_dir)
+                copied += self.single_scp(remote_path, outfile, home_dir)
                 if self.include_oe:
                     stripped_id = pbs_jobid.split(".")[0]
                     base = ".".join(outfile.split(".")[:-1])
                     stdout =  f"{base}.job.o{stripped_id}"
                     stderr =  f"{base}.job.e{stripped_id}"
-                    self.single_scp(remote_path, stdout, home_dir)
-                    self.single_scp(remote_path, stderr, home_dir)
 
+                    copied += self.single_scp(remote_path, stdout, home_dir)
+                    copied += self.single_scp(remote_path, stderr, home_dir)
             except KeyError:
                 pass
+        return copied
 
     def single_scp(self, remote_path, file, home_dir):
         try:
             subprocess.check_output(f"scp -q {self.remote}:{remote_path}/{file} {home_dir} 2>/dev/null", shell=True)
             self.review.append(f"{home_dir}/{file}")
             print(f"{home_dir}/{file}")
+            return True
         except (FileNotFoundError, subprocess.CalledProcessError):
-            pass
+            return False
 
