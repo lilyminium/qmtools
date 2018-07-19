@@ -91,7 +91,7 @@ GAUSSIAN = dict(
             vmem_mb  = 8500,
             ncpus    = 4,
             jobfs_mb = lambda x: x*20,
-            walltime = lambda x: x*5,
+            walltime = lambda x: x*4,
             ),
         )
 GAUSSIAN["lyp"] = GAUSSIAN["m062x"]
