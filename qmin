@@ -8,6 +8,7 @@ from utils import style, get_environment
 
 theory = {
     "M062X" : "M062X",
+    "M06L"  : "M06L",
     "CSD"   : "CSD",
     "QCI"   : "QCI",
     "MP2"   : "MP2",
@@ -63,7 +64,7 @@ parser.add_argument('-b',
                         dest="basis",
                         choices = ("sto3g", "321", "6-31G", "6-31G*", "6-31+G*", 
                                         "6-31G(d)", "6-31+G(d)", "G3largeXP", 
-                                        "GTMP2LARGE", "HF6Z", "HFQZ", "Br.aug-cc-pvtz-DK",
+                                        "GTMP2LARGE", "AUG-cc-pVDZ", "HF6Z", "HFQZ", "Br.aug-cc-pvtz-DK",
                                         "Br.aug-cc-pvtz", "Br.cc-pvtz-DK", "Br.cc-pvtz",
                                         "C.6-311pG-3df", "C.g3mp2large", "H.6-311pG-2p",
                                         "H.g3mp2large", "g3xlarge"), # TO DO: make this case insensitive
