@@ -23,9 +23,9 @@ N_ATOMS_20 = dict(
                             ),
                 qchem = dict(
                             queue    = "normalbw",
-                            vmem_mb  = 8000,
+                            vmem_mb  = 80000,
                             ncpus    = 4,
-                            jobfs_mb = 80000,
+                            jobfs_mb = 200000,
                             walltime = 96
                             ),
                 )
@@ -39,9 +39,9 @@ N_ATOMS_40 = dict(
                             ),
                 qchem = dict(
                             queue    = "normalbw",
-                            vmem_mb  = 10000,
-                            ncpus    = 1,
-                            jobfs_mb = 80000,
+                            vmem_mb  = 80000,
+                            ncpus    = 4,
+                            jobfs_mb = 200000,
                             walltime = 96
                             ),
                 )

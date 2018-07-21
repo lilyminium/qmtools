@@ -5,7 +5,7 @@ from data import rj_template, raijin, raijin, get_params
 import subprocess
 
 JOBFS_MIN = 5000
-JOBFS_MAX = 200000
+JOBFS_MAX = 300000
 
 WALLTIME_MAX = dict(
                     normal=48,
