@@ -1,186 +1,171 @@
 import os
+import glob
+import csv
+import pandas as pd
+from .gaussian_ import read_output
 
-class CSVOut:
-    ext = ".csv",
-    fields = "{base_name},{solvent},{energy}"
-    fields_h = ["Base name", "Solvent", "Energy (au)"]
+
+HARTREE_TO_KJ_MOL = 2625.50
+HARTREE_TO_J_MOL = HARTREE_TO_KJ_MOL*1000
+
+class G3Out:
+
+    pka_fields =   ("base_name","solvent","dft",
+                    "mp2s","mp2l","ccsdt",
+                    "hlc","zpve","tc",
+                    "entropy_j","e0","enthalpy_au",
+                    "enthalpy_kj","dG","energy_au",
+                    "energy_kj","g_solv_dir","direct_vs_indirect",
+                    "G_solv_", "self_ref_indirect", "self_ref_direct")
+    
+
+    def __init__(self, *outfiles):
+        mp2_jobs = []
+        for file in outfiles:
+            if "mp2" in file.method.lower():
+                mp2_jobs.append(file)
+            elif file.thermal is not None:
+                self.dft = file
+            else:
+                self.cc = file 
+
+        self.mp2s, self.mp2l = sorted(mp2_jobs, key=lambda x: x.n_basis)
+
+        print(f"""
+            DFT     : {self.dft.filename}
+            MP2S    : {self.mp2s.filename}
+            MP2L    : {self.mp2l.filename}
+            CCSD(T) : {self.cc.filename}
+            """)
+        self.get_options()
+
+    def get_options(self):
+        dct = dict.fromkeys(self.pka_fields, None)
+        dct.update(self.dft.get_all())
+        self.elements = dct['elements']
+        dct['dft'] = self.dft.get_energy()
+        dct['mp2s'] = self.mp2s.get_energy()
+        dct['mp2l'] = self.mp2l.get_energy()
+        dct['ccsdt'] = self.cc.get_energy()
+        dct['entropy_j'] = dct['entropy']*HARTREE_TO_J_MOL
+
+        dct['e0'] = dct['ccsdt'] - dct['mp2s'] + dct['mp2l'] + dct['hlc']
+        dct['enthalpy_au'] = dct['e0'] + dct['zpve'] + dct['tc']
+        dct['enthalpy_kj'] = dct['enthalpy_au'] * HARTREE_TO_KJ_MOL
+        dct['dG'] = dct['enthalpy_kj'] - (dct['temperature']*dct['entropy_j']/1000)
+
+        self.solvate = dct['solvate']
+        self.dct = dct
+
+
+class MassG3:
+    def __init__(self, path):
+        self.get_available_files(path)
+        self.sort_by_coords()
+        self.link_related_groups()
+        
+
+    def get_available_files(self, path):
+        realpath = os.path.join(path, "**", "*.*")
+        files = glob.glob(realpath, recursive=True)
+        self.output_files = []
+        for file in files:
+            try:
+                self.output_files.append(read_output(file))
+            except KeyError:
+                pass
+
+
+
+    def sort_by_coords(self):
+        grouped_files = []
+        while self.output_files:
+            current = self.output_files[0]
+            matched = [x for x in self.output_files if x.similar_orientation_to(current)]
+            grouped_files.append(matched)
+            self.output_files = [x for x in self.output_files if x not in matched]
+        self.g3 = [G3Out(*x) for x in grouped_files]
+
+    def link_related_groups(self):
+        linked = []
+        while self.g3:
+            current_elements = self.g3[0].dft.elements
+            matched = [x for x in self.g3 if x.elements == current_elements]
+            linked.append(matched)
+            self.g3 = [x for x in self.g3 if x not in matched]
+
+        self.grouped = [sorted(groups, key=lambda x: x.solvate) for groups in linked]
+
+    def calculate_solvent_options(self, ref_solv=None):
+        for each in self.grouped:
+            try:
+                vacuum, solvated = each
+                solvated.dct['energy_au'] = solvated.dct['dft'] - vacuum.dct['dft']
+                solvated.dct['energy_kj'] = solvated.dct['energy_au'] * HARTREE_TO_KJ_MOL
+                solvated.dct['g_solv_dir'] = solvated.dct['dG'] - vacuum.dct['dG']
+                solvated.dct['direct_vs_indirect'] = solvated.dct['g_solv_dir'] - solvated.dct['energy_kj']
+                solvated.dct['G_solv_'] = solvated.dct['energy_kj'] + vacuum.dct['dG']
+
+                if ref_solv:
+                    solvated.dct['self_ref_indirect'] = solvated.dct['G_solv_'] + ref_solv['G_solv_']
+                    solvated.dct['self_ref_direct'] = solvated.dct['dG'] + ref_solv['dG']
+
+            except ValueError:
+                pass
+
+
+class PKARef:
+
+    pka_fields_h = dict(
+        base_name="Base name", 
+        solvent="Solvent", 
+        dft="DFT Energy (au)",
+        mp2s="MP2S Energy (au)", 
+        mp2l="MP2L Energy (au)", 
+        ccsdt="CC Energy (au)",
+        hlc="HLC", 
+        zpve="ZPVE", 
+        tc="TherCorr", 
+        entropy_j="Entropy (J)", 
+        e0="E0", 
+        enthalpy_au="Enthalpy (au)",
+        enthalpy_kj="Enthalpy (kJ/mol)", 
+        dG="G (kJ/mol)", 
+        energy_au="Esol-Egas (au)", 
+        energy_kj="Esol-Egas (kJ)",
+        g_solv_dir="Direct Gsol-Ggas (kJ)", 
+        direct_vs_indirect="Direct-Indirect", 
+        G_solv_="G solv (kJ/mol)",
+        self_ref_indirect="Self+Ref (Indirect)",
+        self_ref_direct="Self+Ref (Direct)"
+        )
     pka_fields =   ("{base_name},{solvent},{dft},"
                     "{mp2s},{mp2l},{ccsdt},"
                     "{hlc},{zpve},{tc},"
                     "{entropy_j},{e0},{enthalpy_au},"
                     "{enthalpy_kj},{dG},{energy_au},"
                     "{energy_kj},{g_solv_dir},{direct_vs_indirect},"
-                    "{G_solv_}")
+                    "{G_solv_},{self_ref_indirect},{self_ref_direct}")
 
-    headings = dict(
-        fields_h = dict(
-            base_name="Base name", 
-            solvent="Solvent", 
-            energy="Energy (au)"
-            )
-        pka_fields_h = dict(
-            base_name="Base name", 
-            solvent="Solvent", 
-            dft="DFT Energy (au)",
-            mp2s="MP2S Energy (au)", 
-            mp2l="MP2L Energy (au)", 
-            ccsdt="CC Energy (au)",
-            hlc="HLC", 
-            zpve="ZPVE", 
-            tc="TherCorr", 
-            entropy_j="Entropy (J)", 
-            e0="E0", 
-            enthalpy_au="Enthalpy (au)",
-            enthalpy_kj="Enthalpy (kJ/mol)", 
-            dG="G (kJ/mol)", 
-            energy_au="Esol-Egas (au)", 
-            energy_kj="Esol-Egas (kJ)",
-            g_solv_dir="Direct Gsol-Ggas (kJ)", 
-            direct_vs_indirect="Direct-Indirect", 
-            G_solv_="G solv (kJ/mol)"
-            )
-        reference_h = dict(
-            HA_ref_indirect="HA+Ref (indirect)", 
-            HA_ref_direct="HA+ref (direct)", 
-            Href_A_indirect="Href+A (indirect)", 
-            Href_A_direct="Href+A(direct)",
-            raw_pka_indirect="Raw pKa (indirect)", 
-            raw_pka_direct="Raw pKa (direct)", 
-            pka_indirect="pKa (indirect)", 
-            pka_direct="pKa (direct)"
-            )
-        )
+    def __init__(self, path=".", outfile="pka_energies.csv", reference=None):
+        self.parsed = MassG3(path)
 
-    reference =    (",{HA_ref_indirect},{HA_ref_direct},"
-                    "{Href_A_indirect},{Href_A_direct},{raw_pka_indirect},"
-                    "{raw_pka_direct},{pka_indirect},{pka_direct}")
-    reference_h = 
-
-    def __init__(self, outfile, *infiles, show=False, delimiter="both",  dft="", 
-                    mp2s="", mp2l="", cc="", ref="", **kwargs):
-
-        self.out = f"{outfile}{self.ext}"
-
-        include = []
-        if mp2s or mp2l or dft or cc:
-            include.append("pka_fields")
-            if ref:
-                include.append("reference")
+        if reference:
+            df = pd.read_csv(reference, header=0)
+            solvated = df[df['solvent']!='None'].to_dict(orient='records')[0]
         else:
-            include.append(fields)
+            solvated = None
 
-        self.pattern = "".join(include)
-        self.include_headings = [x+"_h" for x in include]
-        self.write_headings()
+        self.parsed.calculate_solvent_options(solvated)
 
-    def write_headings(self)
-        if not os.path.isfile(self.out):
-            heading_dict = {}
-            for h in self.include_headings:
-                heading_dict.update(self.headings[h])
-            with open(self.out, 'w') as f:
-                f.write(self.pattern.format(**heading_dict))
+        text = [self.pka_fields.format(**self.pka_fields_h)]
+        for group in self.parsed.grouped:
+            for line in group:
+                text.append(self.pka_fields.format(**line.dct))
+            print("*****")
 
+        with open(outfile, 'w') as f:
+            f.write("\n".join(text))
 
 
 
-
-class QMOut:
-    """
-    Base class for generating QM input files. Should be
-    subclassed for actual usage.
-
-
-    """
-
-    #
-    # Questions to ask
-    #
-
-    whitespace = dict(
-        ext = ".txt",
-        fields = "{base_name:25} {solvent:8} {energy:16.11f}",
-        pka_fields =   ("{base_name:25} {solvent: 8} {dft:16.11f} "
-                        "{mp2s:16.11f} {mp2l:16.11f} {ccsdt:16.11f} "
-                        "{hlc:12.7f} {zpve: 12.7f} {tc: 12.7f} "
-                        "{entropy_j: 12.6f} {e0: 16.11f} {enthalpy_au: 16.11f} "
-                        "{enthalpy_kj: 16.11f} {dG: 16.11f} {indirect_au: 12.7f} "
-                        "{indirect_kj: 12.7f} {direct_kj:12.7f} {direct_vs_indirect:12.6f} "
-                        "{G_solv_kj: 12.7f}"),
-
-        reference =    (" {HA_ref_indirect:12.7f} {HA_ref_direct: 12.7f} "
-                        "{Href_A_indirect:12.7f} {Href_A_direct: 12.7f} {raw_pka_indirect:12.7f} "
-                        "{raw_pka_direct:12.7f} {pka_indirect: 6.4f} {pka_direct: 6.4f}")
-                )
-
-    csv = dict(
-        ext = ".csv",
-        fields = "{base_name},{solvent},{energy}",
-        pka_fields =   ("{base_name},{solvent},{dft},"
-                        "{mp2s},{mp2l},{ccsdt},"
-                        "{hlc},{zpve},{tc},"
-                        "{entropy_j},{e0},{enthalpy_au},"
-                        "{enthalpy_kj},{dG},{indirect_au},"
-                        "{indirect_kj},{direct_kj},{direct_vs_indirect},"
-                        "{G_solv_kj}"),
-
-        reference =    (",{HA_ref_indirect},{HA_ref_direct},"
-                        "{Href_A_indirect},{Href_A_direct},{raw_pka_indirect},"
-                        "{raw_pka_direct},{pka_indirect},{pka_direct}")
-                )
-
-
-    
-
-
-    def __init__(self, outfile, *infiles, show=False, delimiter="both",  dft="", 
-                    mp2s="", mp2l="", cc="", ref="", **kwargs):
-
-        self.csv, self.wht = f"{outfile}.csv", f"{outfile}.dat"
-
-
-        print(style(f"    File: {file}", "yellow"))
-        self.process_geometry(file)
-
-        if kwargs:
-            if not interactive:
-                self._ask_questions = False
-
-            rassolov = kwargs.pop("rassolov", True)
-            basis = kwargs.pop("basis", self.basis)
-            theory = kwargs.pop("theory", self.theory)
-            self.rassolov = rassolov
-            self.basis = basis
-            self.theory = theory
-            self.jobid = f"{self.geometry.base_name}.{self.theory}_{self.rassolov_version}"
-            
-            for k, v in kwargs.items():
-                setattr(self, k, v)
-
-    def write(self):
-
-
-            
-
-        self.make_coords()
-        if self._ask_questions:
-            self.ask_questions()
-        else:
-            print(f"""
-                Theory  : {self.theory}
-                Basis   : {self.basis} {("" if not self.rassolov else self.genbasis)} (Rassolov={self.rassolov})
-                Charge  : {self.charge}  Multiplicity: {self.multiplicity}
-                Optimize: {self.optimize}  Frequencies: {self.calculate_frequencies}
-                Solvate : {self.solvate}""")
-            if self.solvate:
-                print(f"""
-                    Solvent model: {self.solvent_model}
-                    Solvent      : {self.solvent}"""[1:])
-        
-        self.make_string_options()
-        self.make_file_lines()
-        self.write_file()
-        if show:
-            print(f"""
-                ------   {self.path}{self.jobid}.{self.ext}   ------\n{self.file_lines}
-              

@@ -3,19 +3,24 @@
 import argparse
 import sys
 import os
-from formats import qm_packages
+from formats import PKARef
 from utils.colors import style
 
 
 parser = argparse.ArgumentParser(add_help=True, description = 'does stuff with output files')
-parser.add_argument('file', 
-                        nargs="+",
-                        help='files')
+parser.add_argument('path', 
+                        help='path to files')
 parser.add_argument('-o', 
                         type=str, 
                         dest="outfile",
                         default="energies.csv",
                         help='Where to save energies')
-
+parser.add_argument('-ref', 
+                        type=str, 
+                        dest="outfile",
+                        help='Reference csv')
 
 args = parser.parse_args(sys.argv[1:])
+
+
+PKARef(**vars(args))

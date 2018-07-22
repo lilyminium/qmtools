@@ -1,6 +1,7 @@
 from .gaussian import GaussianInp as _g
 from .molpro import MolProInp as _m
 from .qchem import QChemInp as _qc
+from .qmoutp import PKARef
 
 qm_packages = dict(
     gaussian = _g,
