@@ -3,12 +3,16 @@ import glob
 import csv
 import pandas as pd
 from .gaussian_ import read_output
+from utils import printred, printyellow, printdarkcyan
 
 
 HARTREE_TO_KJ_MOL = 2625.50
 HARTREE_TO_J_MOL = HARTREE_TO_KJ_MOL*1000
 
 class G3Out:
+    dft = None
+    cc = None
+    solvate = False
 
     pka_fields =   ("base_name","solvent","dft",
                     "mp2s","mp2l","ccsdt",
@@ -19,25 +23,42 @@ class G3Out:
                     "G_solv_", "self_ref_indirect", "self_ref_direct")
     
 
-    def __init__(self, *outfiles):
+    def __init__(self, *outfiles, verbose=1):
         mp2_jobs = []
         for file in outfiles:
             if "mp2" in file.method.lower():
                 mp2_jobs.append(file)
-            elif file.thermal is not None:
+            elif file.tc is not None:
                 self.dft = file
             else:
                 self.cc = file 
+        try:
+            self.mp2s, self.mp2l = sorted(mp2_jobs, key=lambda x: x.n_basis)
+        except ValueError:
+            printred(f"""Not enough MP2 files. Have you finished all your calculations?""")
+            outfiles[0].print_summary()
+            raise ValueError
 
-        self.mp2s, self.mp2l = sorted(mp2_jobs, key=lambda x: x.n_basis)
+        if self.dft is None:
+            printred(f"""Missing DFT file. Have you finished all your calculations?""")
+            outfiles[0].print_summary()
+            raise ValueError
 
-        print(f"""
-            DFT     : {self.dft.filename}
-            MP2S    : {self.mp2s.filename}
-            MP2L    : {self.mp2l.filename}
-            CCSD(T) : {self.cc.filename}
-            """)
+        if self.cc is None:
+            printred(f"""Missing coupled cluster file. Have you finished all your calculations?""")
+            outfiles[0].print_summary()
+            raise ValueError
+
         self.get_options()
+
+    def print_files(self):
+        print(f"""
+                DFT : {self.dft.filename}
+               MP2S : {self.mp2s.filename}
+               MP2L : {self.mp2l.filename}
+            CCSD(T) : {self.cc.filename}
+            Solvent : {self.dct['solvent']}
+            """)
 
     def get_options(self):
         dct = dict.fromkeys(self.pka_fields, None)
@@ -59,32 +80,37 @@ class G3Out:
 
 
 class MassG3:
-    def __init__(self, path):
-        self.get_available_files(path)
-        self.sort_by_coords()
+    def __init__(self, path, verbose=1):
+        self.get_available_files(path, verbose=verbose)
+        self.sort_by_coords(verbose)
         self.link_related_groups()
         
 
-    def get_available_files(self, path):
+    def get_available_files(self, path, verbose=1):
         realpath = os.path.join(path, "**", "*.*")
         files = glob.glob(realpath, recursive=True)
         self.output_files = []
         for file in files:
             try:
-                self.output_files.append(read_output(file))
+                self.output_files.append(read_output(file, verbose=verbose))
             except KeyError:
                 pass
 
 
 
-    def sort_by_coords(self):
+    def sort_by_coords(self, verbose=1):
         grouped_files = []
         while self.output_files:
             current = self.output_files[0]
             matched = [x for x in self.output_files if x.similar_orientation_to(current)]
             grouped_files.append(matched)
             self.output_files = [x for x in self.output_files if x not in matched]
-        self.g3 = [G3Out(*x) for x in grouped_files]
+        self.g3 = []
+        for group in grouped_files:
+            try:
+                self.g3.append(G3Out(*group, verbose=verbose))
+            except ValueError:
+                pass
 
     def link_related_groups(self):
         linked = []
@@ -94,7 +120,7 @@ class MassG3:
             linked.append(matched)
             self.g3 = [x for x in self.g3 if x not in matched]
 
-        self.grouped = [sorted(groups, key=lambda x: x.solvate) for groups in linked]
+        self.grouped = [sorted(groups, key=lambda x: x.solvate) for groups in linked][::-1]
 
     def calculate_solvent_options(self, ref_solv=None):
         for each in self.grouped:
@@ -110,8 +136,14 @@ class MassG3:
                     solvated.dct['self_ref_indirect'] = solvated.dct['G_solv_'] + ref_solv['G_solv_']
                     solvated.dct['self_ref_direct'] = solvated.dct['dG'] + ref_solv['dG']
 
+                vacuum.print_files()
+                solvated.print_files()
+
             except ValueError:
-                pass
+                for group in each:
+                    group.print_files()
+
+            printdarkcyan("             ***********************")
 
 
 class PKARef:
@@ -147,12 +179,12 @@ class PKARef:
                     "{energy_kj},{g_solv_dir},{direct_vs_indirect},"
                     "{G_solv_},{self_ref_indirect},{self_ref_direct}")
 
-    def __init__(self, path=".", outfile="pka_energies.csv", reference=None):
-        self.parsed = MassG3(path)
+    def __init__(self, path=".", outfile="pka_energies.csv", reference=None, verbose=2):
+        self.parsed = MassG3(path, verbose=verbose)
 
         if reference:
             df = pd.read_csv(reference, header=0)
-            solvated = df[df['solvent']!='None'].to_dict(orient='records')[0]
+            solvated = df[df['Solvent']!='None'].to_dict(orient='records')[0]
         else:
             solvated = None
 
@@ -162,10 +194,11 @@ class PKARef:
         for group in self.parsed.grouped:
             for line in group:
                 text.append(self.pka_fields.format(**line.dct))
-            print("*****")
 
         with open(outfile, 'w') as f:
             f.write("\n".join(text))
+
+        printyellow(f"Written to {outfile}.")
 
 
 

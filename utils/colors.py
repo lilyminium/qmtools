@@ -22,3 +22,9 @@ def printred(text):
 
 def printdarkcyan(text):
     print(style(text, "darkcyan"))
+
+def styleyellow(text):
+    return style(text, "yellow")
+
+def styledarkcyan(text):
+    return style(text, "darkcyan")
