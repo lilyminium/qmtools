@@ -3,6 +3,7 @@ import glob, os
 import math
 from utils import section_by_pattern, lines_to_dct, printyellow, styledarkcyan, printred
 from data import scaling_factors
+import itertools
 
 C_LIGHT     =   2.99792458E+10
 H_PLANCK    =   6.6260755E-34
@@ -26,11 +27,12 @@ class FileReader:
         self.filename       = filename
         self.filename_abs   = os.path.abspath(filename)
         self.directory_abs  = "/".join(self.filename_abs.split("/")[:-1])
-        self.directory      = self.filename_abs.split("/")[-1]
+        self.directory      = self.filename_abs.split("/")[-2]
 
         split = filename.split("/")[-1].split(".")
         self.base_name      = ".".join(split[:-1])
         self.extension      = split[-1]
+        self.base_dir_and_file = os.path.join(self.directory, self.base_name)
 
     def get_contents(self):
         with open(self.filename, 'r') as f:
@@ -100,10 +102,30 @@ class QMOut(FileReader):
         last_parts = last_parts_reversed[::-1]
         self.summary = "".join([x.strip() for x in last_parts]).split("@")[0]
 
-    def similar_orientation_to(self, other, rtol=1e-4, atol=1e-5):
-        try:
+    def similar_orientation_to(self, other, rtol=1e-4, atol=1e-4, debug=False, n_letters=40):
 
-            return np.allclose(np.abs(self.std_coords), np.abs(other.std_coords), rtol=rtol, atol=atol)
+        def _similar_(a, b, rtol, atol):
+            return np.allclose(a, b, rtol=rtol, atol=atol)
+
+        try:
+            self_abs = np.abs(self.std_coords)
+            other_abs = np.abs(other.std_coords)
+
+            sign = list(itertools.combinations_with_replacement([[1], [-1]], 3))
+            arrangements = list(itertools.permutations(range(3)))
+
+            per = list(itertools.product(sign, arrangements))
+
+            any_close = any(_similar_((self.std_coords*sign_)[arr_,:], other.std_coords, rtol, atol) for sign_, arr_ in per)
+            if not any_close and debug:
+                min_distance = min(math.sqrt(np.average((self.std_coords*sign_)[arr_,:] - other.std_coords)) for sign_, arr_ in per)
+                print(f"{min_distance:8.4f} | {self.filename[-n_letters:]:40} {other.filename[-n_letters:]}")
+
+            return any_close
+
+
+
+            #return np.allclose(np.abs(self.std_coords), np.abs(other.std_coords), rtol=rtol, atol=atol)
         except ValueError:
             return False
 

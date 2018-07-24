@@ -29,11 +29,16 @@ parser.add_argument('-ref',
                         type=str, 
                         dest="outfile",
                         help='Reference csv')
-parser.add_argument('--verbose', '-v', 
+parser.add_argument('-v', 
                         action='count',
                         dest="verbose",
                         default=0,
                         help='Verbosity.')
+parser.add_argument('--debug', 
+                        action='store_true',
+                        dest="debug",
+                        help='Debug.')
+
 
 args = parser.parse_args(sys.argv[1:])
 

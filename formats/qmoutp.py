@@ -87,9 +87,9 @@ class G3Out:
 
 
 class MassG3:
-    def __init__(self, files, verbose=1):
+    def __init__(self, files, verbose=1, debug=False, **kwargs):
         self.get_available_files(files, verbose=verbose)
-        self.sort_by_coords(verbose)
+        self.sort_by_coords(verbose, debug=debug)
         self.link_related_groups()
         
 
@@ -105,11 +105,11 @@ class MassG3:
 
 
 
-    def sort_by_coords(self, verbose=1):
+    def sort_by_coords(self, verbose=1, debug=False):
         grouped_files = []
         while self.output_files:
             current = self.output_files[0]
-            matched = [x for x in self.output_files if x.similar_orientation_to(current)]
+            matched = [x for x in self.output_files if x.similar_orientation_to(current, debug=debug)]
             grouped_files.append(matched)
             self.output_files = [x for x in self.output_files if x not in matched]
         self.g3 = []
@@ -203,7 +203,7 @@ class PKARef:
                 files.append(os.path.realpath(path))
 
 
-        self.parsed = MassG3(files, verbose=verbose)
+        self.parsed = MassG3(files, verbose=verbose, **kwargs)
 
         if reference:
             df = pd.read_csv(reference, header=0)
