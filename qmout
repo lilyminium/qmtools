@@ -5,10 +5,20 @@ import sys
 import os
 from formats import PKARef
 from utils.colors import style
+from formats import mass_read
 
 
 parser = argparse.ArgumentParser(add_help=True, description = 'does stuff with output files')
-parser.add_argument('path', 
+
+parser.add_argument('action',
+                        choices=["g3", "summarise", "checkopt"],
+                        default="g3",
+                        nargs="?",
+                        help='What do you want to do? (Default: do G3)'
+                        )
+
+parser.add_argument('paths', 
+                        nargs="+",
                         help='path to files')
 parser.add_argument('-o', 
                         type=str, 
@@ -22,9 +32,14 @@ parser.add_argument('-ref',
 parser.add_argument('--verbose', '-v', 
                         action='count',
                         dest="verbose",
+                        default=0,
                         help='Verbosity.')
 
 args = parser.parse_args(sys.argv[1:])
 
 
-PKARef(**vars(args))
+if args.action == "g3":
+    PKARef(**vars(args))
+else:
+    mass_read(**vars(args))
+

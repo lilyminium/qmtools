@@ -1,0 +1,32 @@
+
+# The master WEST configuration file for a simulation.
+# vi: set filetype=yaml :
+---
+MP2-FC:
+  6-31G(d):
+    iopt_basis  : True
+    sf_freq     : 1.0139
+    sf_zpve     : 0.9670
+    sf_tc       : 1.0059
+    sf_s        : 1.0178
+  6-31+G(d,p):
+    iopt_basis  : True
+    sf_freq     : 1.0333
+    sf_zpve     : 0.9657
+    sf_tc       : 1.0198
+    sf_s        : 1.0334
+
+M062X:
+  Gen: # The Rassolov version of 6-31+G*
+    iopt_basis  : True
+    sf_freq     : 0.9386
+    sf_zpve     : 0.9631
+    sf_tc       : 0.9504
+    sf_s        : 0.9445
+
+  6-31G(d):
+    iopt_basis  : True
+    sf_freq     : 0.9364
+    sf_zpve     : 0.9580
+    sf_tc       : 0.9470
+    sf_s        : 0.9425

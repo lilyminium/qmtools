@@ -33,20 +33,20 @@ class G3Out:
             else:
                 self.cc = file 
         try:
-            self.mp2s, self.mp2l = sorted(mp2_jobs, key=lambda x: x.n_basis)
+            self.mp2s, self.mp2l = sorted(mp2_jobs[:2], key=lambda x: x.n_basis)
         except ValueError:
             printred(f"""Not enough MP2 files. Have you finished all your calculations?""")
-            outfiles[0].print_summary()
+            print("\n".join([str(x) for x in outfiles]))
             raise ValueError
 
         if self.dft is None:
             printred(f"""Missing DFT file. Have you finished all your calculations?""")
-            outfiles[0].print_summary()
+            print("\n".join([str(x) for x in outfiles]))
             raise ValueError
 
         if self.cc is None:
             printred(f"""Missing coupled cluster file. Have you finished all your calculations?""")
-            outfiles[0].print_summary()
+            print("\n".join([str(x) for x in outfiles]))
             raise ValueError
 
         self.get_options()
@@ -78,23 +78,30 @@ class G3Out:
         self.solvate = dct['solvate']
         self.dct = dct
 
+    def sq_diff(self, other):
+        try:
+            return min(np.sum(self.dft.std_coords - other.dft.std_coords)**2,
+                np.sum(self.dft.std_coords + other.dft.std_coords)**2)
+        except:
+            return 1e10
+
 
 class MassG3:
-    def __init__(self, path, verbose=1):
-        self.get_available_files(path, verbose=verbose)
+    def __init__(self, files, verbose=1):
+        self.get_available_files(files, verbose=verbose)
         self.sort_by_coords(verbose)
         self.link_related_groups()
         
 
-    def get_available_files(self, path, verbose=1):
-        realpath = os.path.join(path, "**", "*.*")
-        files = glob.glob(realpath, recursive=True)
+    def get_available_files(self, files, verbose=1):
         self.output_files = []
         for file in files:
             try:
-                self.output_files.append(read_output(file, verbose=verbose))
-            except KeyError:
-                pass
+                parsed = read_output(file, verbose=verbose)
+                if parsed:
+                    self.output_files.append(parsed)
+            except:
+                printred(f"Failed to parse: {file}")
 
 
 
@@ -115,14 +122,15 @@ class MassG3:
     def link_related_groups(self):
         linked = []
         while self.g3:
-            current_elements = self.g3[0].dft.elements
-            matched = [x for x in self.g3 if x.elements == current_elements]
-            linked.append(matched)
-            self.g3 = [x for x in self.g3 if x not in matched]
+            current = self.g3[0]
+            matched = [x for x in self.g3 if x.elements == current.elements]
+            matched.sort(key = lambda x: current.sq_diff(x))
+            linked.append(matched[:2])
+            self.g3 = [x for x in self.g3 if x not in matched[:2]]
 
         self.grouped = [sorted(groups, key=lambda x: x.solvate) for groups in linked][::-1]
 
-    def calculate_solvent_options(self, ref_solv=None):
+    def calculate_solvent_options(self, ref_solv=None, verbose=1):
         for each in self.grouped:
             try:
                 vacuum, solvated = each
@@ -136,14 +144,18 @@ class MassG3:
                     solvated.dct['self_ref_indirect'] = solvated.dct['G_solv_'] + ref_solv['G_solv_']
                     solvated.dct['self_ref_direct'] = solvated.dct['dG'] + ref_solv['dG']
 
-                vacuum.print_files()
-                solvated.print_files()
+                if verbose:
+                    vacuum.print_files()
+                    solvated.print_files()
+                    printdarkcyan("             ***********************")
 
             except ValueError:
-                for group in each:
-                    group.print_files()
+                if verbose:
+                    for group in each:
+                        group.print_files()
+                    printdarkcyan("             ***********************")
 
-            printdarkcyan("             ***********************")
+            
 
 
 class PKARef:
@@ -179,8 +191,19 @@ class PKARef:
                     "{energy_kj},{g_solv_dir},{direct_vs_indirect},"
                     "{G_solv_},{self_ref_indirect},{self_ref_direct}")
 
-    def __init__(self, path=".", outfile="pka_energies.csv", reference=None, verbose=2):
-        self.parsed = MassG3(path, verbose=verbose)
+    def __init__(self, paths, outfile="pka_energies.csv", reference=None, verbose=2, **kwargs):
+        files = []
+        for path in paths:
+            if os.path.isdir(path):
+                realpath = os.path.join(path, "**", "*.*")
+                if verbose:
+                    printyellow(realpath)
+                files += glob.glob(realpath, recursive=True)
+            if os.path.isfile(path):
+                files.append(os.path.realpath(path))
+
+
+        self.parsed = MassG3(files, verbose=verbose)
 
         if reference:
             df = pd.read_csv(reference, header=0)
@@ -188,11 +211,14 @@ class PKARef:
         else:
             solvated = None
 
-        self.parsed.calculate_solvent_options(solvated)
+        self.parsed.calculate_solvent_options(solvated, verbose=verbose)
 
         text = [self.pka_fields.format(**self.pka_fields_h)]
         for group in self.parsed.grouped:
             for line in group:
+                for k, v in line.dct.items():
+                    if v is None:
+                        line.dct[k] = ""
                 text.append(self.pka_fields.format(**line.dct))
 
         with open(outfile, 'w') as f:
