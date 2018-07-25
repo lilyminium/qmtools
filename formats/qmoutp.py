@@ -3,7 +3,7 @@ import glob
 import csv
 import pandas as pd
 from .gaussian_ import read_output
-from utils import printred, printyellow, printdarkcyan
+from utils import printred, printyellow, printdarkcyan, stylered
 
 
 HARTREE_TO_KJ_MOL = 2625.50
@@ -32,23 +32,16 @@ class G3Out:
                 self.dft = file
             else:
                 self.cc = file 
+
         try:
-            self.mp2s, self.mp2l = sorted(mp2_jobs[:2], key=lambda x: x.n_basis)
-        except ValueError:
-            printred(f"""Not enough MP2 files. Have you finished all your calculations?""")
-            print("\n".join([str(x) for x in outfiles]))
-            raise ValueError
+            mp2_sorted = sorted(mp2_jobs, key=lambda x: x.n_basis)
+            self.mp2s  = mp2_sorted.pop(0)
+            self.mp2l  = mp2_sorted[-1]
+        except (ValueError, IndexError):
+            self.try_print_files(outfiles, verbose=verbose)
 
-        if self.dft is None:
-            printred(f"""Missing DFT file. Have you finished all your calculations?""")
-            print("\n".join([str(x) for x in outfiles]))
-            raise ValueError
-
-        if self.cc is None:
-            printred(f"""Missing coupled cluster file. Have you finished all your calculations?""")
-            print("\n".join([str(x) for x in outfiles]))
-            raise ValueError
-
+        self.try_print_files(outfiles, verbose=verbose)
+        self.outfiles = [self.dft, self.mp2s, self.mp2l, self.cc]
         self.get_options()
 
     def print_files(self):
@@ -59,6 +52,28 @@ class G3Out:
             CCSD(T) : {self.cc.filename}
             Solvent : {self.dct['solvent']}
             """)
+
+    def try_print_files(self, outfiles, verbose=2):
+        err = 0
+        txt = ""
+        for k in ["dft", "mp2s", "mp2l", "cc"]:
+            try:
+                filename = getattr(self, k).filename
+            except:
+                filename = stylered("Missing")
+                err += 1
+            txt += f"""
+                {k.upper():>5} : {filename}"""
+        if err:
+            printred(f"""
+                Missing files!""")
+            print(txt[1:])
+            print(f"{len(outfiles)} input files.")
+            raise ValueError
+        elif verbose > 1:
+            print(txt[1:])
+
+
 
     def get_options(self):
         dct = dict.fromkeys(self.pka_fields, None)
@@ -89,35 +104,45 @@ class G3Out:
 class MassG3:
     def __init__(self, files, verbose=1, debug=False, **kwargs):
         self.get_available_files(files, verbose=verbose)
-        self.sort_by_coords(verbose, debug=debug)
+        self.sort_by_coords(verbose=verbose, debug=debug)
         self.link_related_groups()
         
 
     def get_available_files(self, files, verbose=1):
         self.output_files = []
+        _summaries = []
         for file in files:
             try:
                 parsed = read_output(file, verbose=verbose)
                 if parsed:
-                    self.output_files.append(parsed)
+                    if parsed.summary not in _summaries:
+                        self.output_files.append(parsed)
+                        _summaries.append(parsed.summary)
+                    elif verbose > 1:
+                        idx = _summaries.index(parsed.summary)
+                        printred(f"Not added: {file} is identical to {self.output_files[idx]}")
+                elif verbose > 2:
+                    printred(f"Failed to parse: {file}")
             except:
-                printred(f"Failed to parse: {file}")
-
+                if verbose > 2:
+                    printred(f"Failed to parse: {file}")
 
 
     def sort_by_coords(self, verbose=1, debug=False):
         grouped_files = []
+        self.g3 = []
         while self.output_files:
             current = self.output_files[0]
-            matched = [x for x in self.output_files if x.similar_orientation_to(current, debug=debug)]
-            grouped_files.append(matched)
-            self.output_files = [x for x in self.output_files if x not in matched]
-        self.g3 = []
-        for group in grouped_files:
-            try:
-                self.g3.append(G3Out(*group, verbose=verbose))
-            except ValueError:
-                pass
+            matched = [x for x in self.output_files if x.similar_to(current, debug=debug, verbose=verbose)]
+            if len(matched) >= 4:
+                try:
+                    self.g3.append(G3Out(*matched, verbose=verbose))
+                    self.output_files = [x for x in self.output_files if x not in self.g3[-1].outfiles]
+
+                except ValueError:
+                    self.output_files.pop(0)
+            else:
+                self.output_files = [x for x in self.output_files if x not in matched]
 
     def link_related_groups(self):
         linked = []
@@ -131,6 +156,7 @@ class MassG3:
         self.grouped = [sorted(groups, key=lambda x: x.solvate) for groups in linked][::-1]
 
     def calculate_solvent_options(self, ref_solv=None, verbose=1):
+        printdarkcyan("\n             ***********************")
         for each in self.grouped:
             try:
                 vacuum, solvated = each

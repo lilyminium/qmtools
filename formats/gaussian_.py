@@ -1,9 +1,10 @@
 import numpy as np
 import glob, os
 import math
-from utils import section_by_pattern, lines_to_dct, printyellow, styledarkcyan, printred
+from utils import section_by_pattern, lines_to_dct, printyellow, styledarkcyan, printred, printgreen, style
 from data import scaling_factors
 import itertools
+import mendeleev
 
 C_LIGHT     =   2.99792458E+10
 H_PLANCK    =   6.6260755E-34
@@ -13,6 +14,8 @@ R_KJ        =   R_UNI/1000
 PPA         =   101325
 PI          =   3.1415926539
 HARTREE_TO_KJ = 2625.5
+AMU_TO_KG   =1.6605402E-27
+A0  =0.5291772108
 
 
 class FileReader:
@@ -21,7 +24,10 @@ class FileReader:
     def __init__(self, filename, verbose=2, **kwargs):
         self.get_file_environment(filename)
         if verbose > 1:
-            printyellow(self.filename)
+            self.print_filename()
+
+    def print_filename(self):
+        printyellow(self.filename)
     
     def get_file_environment(self, filename):
         self.filename       = filename
@@ -65,13 +71,13 @@ class QMOut(FileReader):
     entropy = None
     temperature = None
     solvent = None
-    thermochem = ""
 
     def __str__(self):
         return self.filename
 
     def __init__(self, filename, verbose=2):
-        super().__init__(filename, verbose=0)
+        super().__init__(filename, verbose=verbose)
+        self.thermochem = ""
         self.get_contents()
         self.get_summary()
         self.get_standard_orientation()
@@ -79,15 +85,64 @@ class QMOut(FileReader):
         self.get_method()
         self.get_solvation()
         self.get_others(verbose=verbose)
+        self.thermochem += "\n"
         if verbose > 1:
             self.print_summary()
+
+    def compare(self, other, n_char=20, ncol=10):
+
+        def _compare(a, b, name):
+            fmt = dict(
+                        float = f">{ncol}.5f",
+                        int   = f">{ncol}d",
+                        str   = f">{ncol}",
+                        )
+            if any(type(x) == bool or x == None for x in (a, b)):
+                a, b = str(a), str(b)
+
+            f_a = fmt.get(type(a).__name__, fmt['str'])
+
+            diff = ["red", None ][a == b]
+            print(style(f"{name.capitalize():>15}: {a:{f_a}}  {b:{f_a}}", diff))
+
+
+
+
+        printyellow(f"{self.filename:^{n_char}} {other.filename:^{n_char}}")
+        for attr in ["solvate", "solvent", "charge", "multiplicity", "method", "basis", "n_atoms"]:
+            s_a = getattr(self, attr)
+            o_a = getattr(other, attr)
+
+            _compare(s_a, o_a, attr)
+
+        if self.n_atoms == other.n_atoms:
+            if self.elements == other.elements:
+                print("""\
+                Elements match up.""")
+
+                if self.similar_orientation_to(other, verbose=0):
+                    print("""\
+                Coordinates are similar.""")
+                else:
+                    diff, rmsd = self._diff_coordinates(self.coordinates, other.coordinates, _print=False)
+                    printred(f"""\
+                Coordinates are not similar.
+                RMSD: {rmsd:6.4f}    Diff: {diff:6.4f}""")
+
+            else:
+                printred("Elements don't match.")
+                printred([(x, y) for x, y in zip(self.elements, other.elements) if x != y])
+
+                
+
+
+        
 
     def print_summary(self):
         print(f"""
             {styledarkcyan("Method:")} {self.method: <8} {styledarkcyan("Solvent:"):16} {self.solvent}
             {styledarkcyan("Charge:")} {self.charge: <8d} {styledarkcyan("Multiplicity:"):16} {self.multiplicity}
-             {styledarkcyan("Atoms:")} {self.n_atoms: <8d} {styledarkcyan("Basis functions:"):16} {self.n_basis}{self.thermochem}
-            """)
+             {styledarkcyan("Atoms:")} {self.n_atoms: <8d} {styledarkcyan("Basis functions:"):16} {self.n_basis}\n{self.thermochem}""")
             
         
 
@@ -102,32 +157,76 @@ class QMOut(FileReader):
         last_parts = last_parts_reversed[::-1]
         self.summary = "".join([x.strip() for x in last_parts]).split("@")[0]
 
-    def similar_orientation_to(self, other, rtol=1e-4, atol=1e-4, debug=False, n_letters=40):
+    @staticmethod
+    def _diff_coordinates(a, b, _print=True):
+            difference = a-b
+            diff = np.sum(difference)
+            rmsd = (np.average(difference**2))**0.5
+            if _print:
+                printyellow(f"   RMSD {rmsd}   |   Diff {diff}   ")
+                printyellow(f"--- {'A':^30} {'B':^30} {'Difference':^30} --- ")
+                side_view = zip(a, b, difference)
+                for a_, b_, d_ in side_view:
+                    print(f"{a_}    {b_}    {d_}")
+            return diff, rmsd
 
-        def _similar_(a, b, rtol, atol):
+    def similar_orientation_to(self, other, rtol=1e-5, atol=1e-5, debug=False, 
+                                n_letters=50, verbose=2, rmsd_threshold=1e-2):
+        """ Lesson here: don't trust standards. Even Peter Gill's.
+        Checks input orientation first, then standard.
+        """
+
+        np.set_printoptions(precision=5, linewidth=120, sign=' ', suppress=True, floatmode="fixed")
+
+        def _similar(a, b):
             return np.allclose(a, b, rtol=rtol, atol=atol)
 
-        try:
-            self_abs = np.abs(self.std_coords)
-            other_abs = np.abs(other.std_coords)
+        if debug and verbose > 2:
+            print("Comparing coordinates.")
 
-            sign = list(itertools.combinations_with_replacement([[1], [-1]], 3))
-            arrangements = list(itertools.permutations(range(3)))
+        if _similar(self.coordinates, other.coordinates):
+            if debug and verbose > 3:
+                printgreen("Found similar coordinates.")
+            return True
 
-            per = list(itertools.product(sign, arrangements))
+        if debug or verbose > 2:
+            printred(f"\nA: {self.filename[-n_letters:]}       B: {other.filename[-n_letters:]}")
+            if verbose > 3:
+                printyellow(f"{'Input orientation':^100}")
+                self._diff_coordinates(self.coordinates, other.coordinates)
+            if verbose > 4:
+                self.print_filename()
+                self.print_summary()
+                other.print_filename()
+                other.print_summary()
 
-            any_close = any(_similar_((self.std_coords*sign_)[arr_,:], other.std_coords, rtol, atol) for sign_, arr_ in per)
-            if not any_close and debug:
-                min_distance = min(math.sqrt(np.average((self.std_coords*sign_)[arr_,:] - other.std_coords)) for sign_, arr_ in per)
-                print(f"{min_distance:8.4f} | {self.filename[-n_letters:]:40} {other.filename[-n_letters:]}")
+        sign = list(itertools.product([1, -1], repeat=3))
+        arrangements = list(itertools.permutations(range(3)))
 
-            return any_close
+        per = list(itertools.product(sign, arrangements))
+        permutations = [(self.std_coords*sign_)[:,arr_] for sign_, arr_ in per]
 
+        any_close = any(_similar(x, other.std_coords) for x in permutations)
+        if not any_close and debug and verbose > 3:
+            _, rmsds = list(zip(*[self._diff_coordinates(x, other.std_coords, _print=False) for x in permutations]))
+            min_rmsd_idx = np.argsort(rmsds)[0]
+            min_rmsd = rmsds[min_rmsd_idx]
 
+            if min_rmsd < rmsd_threshold or verbose > 4:
+                printyellow(f"{'Standard orientation':^100}")
+                self._diff_coordinates(permutations[min_rmsd_idx], other.std_coords)
+                printyellow("        --------     \n")
 
-            #return np.allclose(np.abs(self.std_coords), np.abs(other.std_coords), rtol=rtol, atol=atol)
-        except ValueError:
-            return False
+        return any_close
+
+    def similar_to(self, other, **kwargs):
+        return all((self.solvate == other.solvate,
+                    self.solvent == other.solvent,
+                    self.elements == other.elements,
+                    self.charge  == other.charge,
+                    self.multiplicity == other.multiplicity,
+                    )) and self.similar_orientation_to(other, **kwargs)
+
 
     def get_solvation(self):
         pass
@@ -176,30 +275,28 @@ class GaussianLog(QMOut):
     def get_dft_details(self, verbose=0, **kwargs):
         try:
             thermochem = section_by_pattern(self.contents, pattern="Thermochemistry")[1:][-1]
+            if verbose > 2:
+                print("Thermochemistry found.")
             try:
                 self.__dict__.update(scaling_factors[self.method][self.basis])
             except KeyError:
                 printred(f"{self.method} {self.basis} scaling factors not specified yet.")
             self.temperature = float(self.search("Temperature", lines=thermochem).split()[1])
             self.mass_total = float(self.search("Molecular mass", lines=thermochem).split(":")[1].strip().split()[0])
+            self.mass_total_kg = self.mass_total*AMU_TO_KG
             atom_lines = [x for x in thermochem if "Atom " in x]
             self.mass_atoms = [float(x.strip().split()[-1]) for x in atom_lines]
+            if verbose > 2:
+                print(f"""\
+               Temperature: {self.temperature} K
+            Molecular mass: {self.mass_total_kg} kg \
+                    """)
 
-
-            self.get_frequencies(verbose=verbose)
+            self.check_frequencies(verbose=verbose)
             self.get_entropy(verbose=verbose)
             self.get_zero_point(verbose=verbose)
             self.get_hlc(verbose=verbose)
             self.get_thermal_correction(verbose=verbose)
-            self.thermochem = f"""
-            {styledarkcyan("HLC:"):>30} {self.hlc:>12.8f} Hartrees
-            {styledarkcyan("Thermal corr.:"):>30} {self.tc_kj:>12.8f} kJ/mol
-            {styledarkcyan(" "):>30} {self.tc:>12.8f} Hartrees
-            {styledarkcyan("ZPVE:"):>30} {self.zpve_kj:>12.8f} kJ/mol
-            {styledarkcyan(" "):>30} {self.zpve:>12.8f} Hartrees
-            {styledarkcyan("Entropy:"):>30} {self.entropy_kj:>12.8f} kJ/mol/K
-            {styledarkcyan(" "):>30} {self.entropy:>12.8f} Hartrees
-            """
         except:
             pass
 
@@ -210,13 +307,17 @@ class GaussianLog(QMOut):
 
         ######### s_nutot #########
         snusc       = self.frequencies * C_LIGHT * self.sf_s
-        theta       = (snusc * H_PLANCK/KB) / self.temperature # skipped a tchem step here
-        exp_theta   = np.exp(-theta)
-        snu         = R_UNI * ( theta  /  (  (np.exp(theta)-1) - np.log(1-exp_theta) )  )
+        theta       = snusc * H_PLANCK/KB
+        exp_theta   = np.exp(-theta/self.temperature) # exp(-theta(i)/tk)
+        qus         = 1/(1-exp_theta)
+        snu_top     = theta/self.temperature
+        snu_bottom  = np.exp(snu_top)-1   # exp(theta(i)/tk)-1)   -log(1-tmp)
+
+        snu         = R_UNI * ( (snu_top/snu_bottom) -np.log(1-exp_theta))
         s_nutot     = np.sum(snu)
 
         ######### s_trans #########
-        q_trans     = ((  (2*PI*self.mass_total*KB*self.temperature)/(H_PLANCK**2))**1.5 )*KB*self.temperature/PPA
+        q_trans     = ((  (2*PI*self.mass_total_kg*KB*self.temperature)/(H_PLANCK**2))**1.5 )*KB*self.temperature/PPA
         s_trans     = R_UNI * (np.log(q_trans) + 2.5)
 
 
@@ -252,11 +353,15 @@ class GaussianLog(QMOut):
                 """)
                 
 
-        self.entropy_kj = (s_trans + s_elec + s_rot + s_nutot)/1000
+        self.entropy_kj = (s_trans + s_elec + s_rot + s_nutot) / 1000
         self.entropy = self.entropy_kj / HARTREE_TO_KJ
         if verbose > 3:
             print(f"""\
-                Entropy total: {self.entropy}""")
+                Entropy kJ: {self.entropy_kj}""")
+        self.thermochem += f"""
+            {styledarkcyan("Entropy:"):>30} {self.entropy_kj:>12.8f} kJ/mol/K
+            {styledarkcyan(" "):>30} {self.entropy:>12.8f} Hartrees\
+            """
 
 
     def get_frequencies(self, verbose=0):
@@ -269,15 +374,16 @@ class GaussianLog(QMOut):
             print(f"""\
                 Frequencies: \n{self.frequencies}""")
 
-    def check_frequencies(self, verbose=0):
+    def check_frequencies(self, verbose=3):
         try:
             self.get_frequencies()
-            if all(self.frequencies > 0):
-                print(f"{self.base_name} has no imaginary frequencies.")
-            else:
-                print(f"{self.base_name} has imaginary frequencies.")
-                if verbose:
-                    print(f"    Frequencies:{self.frequencies}")
+            if verbose > 2:
+                if all(self.frequencies > 0):
+                    print(f"   {self.base_name} has no imaginary frequencies.")
+                else:
+                    print(f"   {self.base_name} has imaginary frequencies.")
+            if verbose > 5:
+                print(f"    Frequencies:{self.frequencies}")
 
         except:
             pass
@@ -329,6 +435,11 @@ class GaussianLog(QMOut):
             print(f"""\
                 Thermal correction: {self.tc}""")
 
+        self.thermochem += f"""
+            {styledarkcyan("Thermal corr.:"):>30} {self.tc_kj:>12.8f} kJ/mol
+            {styledarkcyan(" "):>30} {self.tc:>12.8f} Hartrees\
+            """
+
     def get_zero_point(self, verbose=0):
         """
         This is annoyingly complex. I could have written it more simply, but it
@@ -348,19 +459,54 @@ class GaussianLog(QMOut):
         if verbose > 3:
             print(f"""\
                 ZPVE: {self.zpve}""")
+        self.thermochem += f"""
+            {styledarkcyan("ZPVE:"):>30} {self.zpve_kj:>12.8f} kJ/mol
+            {styledarkcyan(" "):>30} {self.zpve:>12.8f} Hartrees\
+            """
 
 
 
     def get_hlc(self, verbose=0):
-        ALPHA_CONST = 9.413/1000 # citation: LeafCompChem.pdf (now in hartrees)
-        BETA_CONST = 3.969/1000 # LeafCompChem.pdf
-        electrons = [x for x in self.contents if "alpha electrons" in x][0]
-        split = electrons.split()
-        alpha, beta = int(split[0]), int(split[3])
-        self.hlc = -ALPHA_CONST*beta - (BETA_CONST*(alpha-beta))/1000
+        """ using G3(MP2)-RAD molecular hlc value
+        It's calculated by: looking at the tens place of the atomic number......!?
+
+        the fortran divides the atomic number by 10 and rounds down, for the group no.
+        """
+        ALPHA_CONST = 9.413 # citation: LeafCompChem.pdf (now in hartrees)
+        BETA_CONST = 3.969 # LeafCompChem.pdf
+
+        el = [x for x in mendeleev.element(self.elements)]
+        val = 0
+        for x in el:
+            try:
+                val += x.ec.get_valence().ne()
+            except TypeError:
+                if x.symbol == "H":
+                    val += 1
+
+        tot_v_elec = val - self.charge
+
+
+        beta = int(tot_v_elec/2)
+
+        if self.multiplicity > 2:
+            beta -= 1
+
+        alpha = tot_v_elec - beta
+
+
+        # Because reading the log makes too much sense
+        # electrons = [x for x in self.contents if "alpha electrons" in x][0]
+        # split = electrons.split()
+        # alpha, beta = int(split[0]), int(split[3])
+
+        self.hlc = (-ALPHA_CONST*beta - (BETA_CONST*(alpha-beta)))/1000
         if verbose > 3:
             print(f"""\
                 HLC: {self.hlc}""")
+        self.thermochem += f"""
+            {styledarkcyan("HLC:"):>30} {self.hlc:>12.8f} Hartrees\
+            """
 
 
     def get_coordinates(self):
@@ -372,21 +518,24 @@ class GaussianLog(QMOut):
         else:
             keys = ["element", "_", "x", "y", "z"]
         self.parsed_coords = lines_to_dct(split[1:], keys, delimiter=",")
+        self.elements = self.parsed_coords['element']
         xyzs = [self.parsed_coords[col] for col in ["x", "y", "z"]]
         coordinates = np.array(xyzs, dtype=np.float64)
-        self.xyz = np.transpose(coordinates)
+        self.coordinates = np.transpose(coordinates)
 
     def get_imatrix(self, verbose=0):
         xcm = np.zeros(3)
-        for mass, coords in zip(self.mass_atoms, self.xyz):
+        coord_a0 = self.std_coords / A0
+        for mass, coords in zip(self.mass_atoms, coord_a0):
             xcm += mass*coords
+
         xcm /= self.mass_total
         if verbose > 5:
             print(f"""\
-                Center of mass: {xcm}""")
+                Center of mass: {xcm*A0}""")
 
         ixx, iyy, izz, ixy, ixz, iyz = 0, 0, 0, 0, 0, 0
-        for mass, coords in zip(self.mass_atoms, self.xyz):
+        for mass, coords in zip(self.mass_atoms, coord_a0):
             x2, y2, z2 = np.square(coords)
             xc, yc, zc = coords - xcm
 
@@ -439,12 +588,12 @@ class GaussianLog(QMOut):
         parsed = lines_to_dct(coord_lines, keys)
         arr_cols = [parsed['x'], parsed['y'], parsed['z']]
         try:
-            self.std_coords = np.array(arr_cols, dtype=np.float64)
+            self.std_coords = np.array(arr_cols, dtype=np.float64).transpose()
         except ValueError:
             print(self.filename)
             raise ValueError
-        self.elements = parsed['at_z']
-        self.n_atoms = len(self.elements)
+        self.n_atoms = len(parsed['x'])
+        self.at_z = np.array(parsed['at_z'], dtype=int)
 
     def get_all(self):
         keys = ["base_name", "zpve", "tc", "hlc", "entropy", "temperature", "elements", "solvate", "solvent", "solvent_model"]
@@ -462,16 +611,16 @@ class QChemOut(QMOut):
         rem = section_by_pattern(self.contents, pattern="\$rem")[1]
         rembody = section_by_pattern(rem, pattern="\$end")[0]
         for line in rembody:
-            if "method" in line.lower():
-                self.method = line.split()[1].strip()
+            if "method" in line.lower() and "solvent" not in line.lower():
+                self.method = line.split()[1].strip().upper()
             if "basis" in line.lower():
-                self.basis = line.split()[1].strip()
+                self.basis = line.split()[1].strip().upper()
         return self.method
 
     def get_energy(self):
         method = self.get_method()
         for line in self.contents[::-1]:
-            if method in line and "energy" in line:
+            if method in line and "total energy" in line:
                 self.energy = np.float64(line.split("=")[-1].strip())
                 return self.energy
         raise ValueError("No energies found.")
@@ -482,7 +631,7 @@ class QChemOut(QMOut):
             smxbody = section_by_pattern(smx, pattern="\$end")[0]
             for line in smxbody:
                 if "solvent" in line.lower():
-                    self.solvent = line.split()[1].strip()
+                    self.solvent = line.split()[1].strip().lower()
                     self.solvate = True
         except IndexError:
             self.solvate = False
@@ -495,7 +644,7 @@ class QChemOut(QMOut):
         parsed = lines_to_dct(coord_lines, keys)
         self.elements = parsed['element']
         arr_cols = [parsed['x'], parsed['y'], parsed['z']]
-        self.std_coords = np.array(arr_cols, dtype=np.float64)
+        self.std_coords = np.array(arr_cols, dtype=np.float64).transpose()
         self.n_atoms = len(self.elements)
 
     def get_coordinates(self):
@@ -507,6 +656,10 @@ class QChemOut(QMOut):
         self.charge, self.multiplicity = map(int, mollines[1].split())
         keys = ["element", "x", "y", "z"]
         self.parsed_coords = lines_to_dct(mollines[2:], keys)
+        xyzs = [self.parsed_coords[col] for col in ["x", "y", "z"]]
+        coordinates = np.array(xyzs, dtype=np.float64)
+        self.coordinates = np.transpose(coordinates)
+
 
     def get_n_basis(self):
         for line in self.contents:
@@ -539,6 +692,10 @@ def mass_read(paths, verbose=2, action="summarise", **kwargs):
         elif os.path.isdir(path):
             files += glob.glob(path+"/**/*")
 
+    if action == "summarise":
+        verbose = 1e3
+
+    parsed_files = []
     for file in files:
         parsed = read_output(file, verbose=verbose)
         if parsed:
@@ -547,5 +704,9 @@ def mass_read(paths, verbose=2, action="summarise", **kwargs):
                     parsed.check_frequencies(verbose=verbose)
                 except:
                     pass
+            parsed_files.append(parsed)
 
+    if action == "compare":
+        for a, b in itertools.combinations(parsed_files, 2):
+            a.compare(b)
 

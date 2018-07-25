@@ -11,7 +11,7 @@ from formats import mass_read
 parser = argparse.ArgumentParser(add_help=True, description = 'does stuff with output files')
 
 parser.add_argument('action',
-                        choices=["g3", "summarise", "checkopt"],
+                        choices=["g3", "summarise", "checkopt", "compare"],
                         default="g3",
                         nargs="?",
                         help='What do you want to do? (Default: do G3)'
@@ -25,9 +25,9 @@ parser.add_argument('-o',
                         dest="outfile",
                         default="energies.csv",
                         help='Where to save energies')
-parser.add_argument('-ref', 
+parser.add_argument('-r', '--ref', 
                         type=str, 
-                        dest="outfile",
+                        dest="ref",
                         help='Reference csv')
 parser.add_argument('-v', 
                         action='count',
