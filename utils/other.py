@@ -25,5 +25,5 @@ def get_bin(exe="ls"):
         for path in split:
             joined = os.path.join(path, exe)
             if os.path.exists(joined):
-                return joined
-    return exe
+                return joined.strip()
+    return exe.strip()

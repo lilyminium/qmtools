@@ -24,10 +24,9 @@ source_path = os.path.abspath(args.source)
 base_name = source_path.split("/")[-1] if not args.target else args.target
 
 target_path = os.path.abspath(f"{HOME}/bin/{base_name}")
-
 if os.path.exists(target_path):
     try:
-        subprocess.call(f"rm {target_path}", shell=True)
+        subprocess.call(f"rm -f {target_path}", shell=True)
     except FileNotFoundError:
         pass
     
