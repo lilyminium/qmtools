@@ -17,3 +17,13 @@ def get_environment():
 def get_script_path():
     script_dir = os.path.dirname(os.path.realpath(__file__))
     printred(f"Current script directory:\n{script_dir}\n")
+
+def get_bin(exe="ls"):
+    paths = os.environ.get('PATH', '')
+    if paths:
+        split = paths.split(":")
+        for path in split:
+            joined = os.path.join(path, exe)
+            if os.path.exists(joined):
+                return joined
+    return exe
