@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+
+import os
+import itertools
+import math
+from utils import style_unique, N_COLOR
+
+
+
+def get_prefix(texts):
+    prefix = [x.pop() for x in map(set, zip(*texts)) if len(x)==1]
+    return "".join(prefix)
+
+def unprefix(texts):
+    prefix = get_prefix(texts)
+    np = len(prefix)
+    return prefix, [x[np:] for x in texts if x[np:]]
+
+def ordered_replace(text, original, replacement):
+    for old, new in zip(original, replacement):
+        text = text.replace(old, new)
+    return text
+
+def get_prefixes(text, maxlen, minlen=4, min_match =3):
+    prefixes = []
+    text = [x for x in text if len(x)>min_match]
+    while len(prefixes) < maxlen and text:
+        ongoing = []
+        for group in text:
+            prefix, cut = unprefix(group)
+            if len(prefix) >= minlen:
+                prefixes.append(prefix)
+            if len(cut) > min_match:
+                ongoing.extend(cut)
+        text = [list(v) for k, v in itertools.groupby(sorted(ongoing), key=lambda x: x[0])]
+
+
+    return prefixes
+
+def print_col(text, maxlen=400):
+    textlen = max(len(x) for x in text)+10
+
+    ncol = int(maxlen / textlen)
+    col_len = math.ceil(len(text)/ncol)
+    columns = []
+    pattern = "{x:{textlen}}"
+    print(col_len, ncol)
+    while len(text) > col_len:
+        columns.append([pattern.format(x=x, textlen=textlen) for x in text[:col_len]])
+        text = text[:col_len]
+    columns.append([pattern.format(x=x, textlen=textlen) for x in text])
+    zipped = list(itertools.zip_longest(*columns, fillvalue=''))
+    print("\n".join("\t".join(x) for x in zipped))
+
+
+paths = sorted(os.listdir())
+
+original_text = []
+for k, v in itertools.groupby(paths, key=lambda x: x[0]):
+    original_text.append(list(v))
+
+to_color = get_prefixes(original_text, N_COLOR)
+styled = style_unique(*to_color)
+flat = [x for y in original_text for x in y]
+
+colored_text = [ordered_replace(x, to_color, styled) for x in flat]
+print_col(colored_text)

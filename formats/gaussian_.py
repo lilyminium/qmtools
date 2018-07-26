@@ -170,7 +170,7 @@ class QMOut(FileReader):
                     print(f"{a_}    {b_}    {d_}")
             return diff, rmsd
 
-    def similar_orientation_to(self, other, rtol=1e-5, atol=1e-5, debug=False, 
+    def similar_orientation_to(self, other, rtol=1e-5, atol=1e-4, debug=False, 
                                 n_letters=50, verbose=2, rmsd_threshold=1e-2):
         """ Lesson here: don't trust standards. Even Peter Gill's.
         Checks input orientation first, then standard.
@@ -181,8 +181,6 @@ class QMOut(FileReader):
         def _similar(a, b):
             return np.allclose(a, b, rtol=rtol, atol=atol)
 
-        if debug and verbose > 2:
-            print("Comparing coordinates.")
 
         if _similar(self.coordinates, other.coordinates):
             if debug and verbose > 3:
@@ -596,7 +594,7 @@ class GaussianLog(QMOut):
         self.at_z = np.array(parsed['at_z'], dtype=int)
 
     def get_all(self):
-        keys = ["base_name", "zpve", "tc", "hlc", "entropy", "temperature", "elements", "solvate", "solvent", "solvent_model"]
+        keys = ["charge", "mass_total", "filename", "base_name", "zpve", "tc", "hlc", "entropy", "temperature", "elements", "solvate", "solvent", "solvent_model"]
         dct = dict((k, self.__dict__[k]) for k in keys)
         return dct
 

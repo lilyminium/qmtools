@@ -23,7 +23,7 @@ parser.add_argument('paths',
 parser.add_argument('-o', 
                         type=str, 
                         dest="outfile",
-                        default="energies.csv",
+                        default="energies",
                         help='Where to save energies')
 parser.add_argument('-r', '--ref', 
                         type=str, 
@@ -34,6 +34,12 @@ parser.add_argument('-v',
                         dest="verbose",
                         default=0,
                         help='Verbosity.')
+parser.add_argument('-f',
+                        dest="ext",
+                        choices=["csv", "xlsx"],
+                        default="xlsx",
+                        help='File format.')
+
 parser.add_argument('--debug', 
                         action='store_true',
                         dest="debug",
