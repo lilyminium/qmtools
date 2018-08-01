@@ -30,3 +30,10 @@ M062X:
     sf_zpve     : 0.9580
     sf_tc       : 0.9470
     sf_s        : 0.9425
+
+DEFAULT:
+    iopt_basis  : True
+    sf_freq     : 1
+    sf_zpve     : 1
+    sf_tc       : 1
+    sf_s        : 1

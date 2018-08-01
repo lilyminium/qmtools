@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import sys
-from tools import color_stdout
+from tools import color_all
 
-symlink = sys.argv[0].split("/")[-1][:-1]
-color_stdout(symlink, sys.argv[1:])
+symlink = sys.argv[0].split("/")[-1]
+color_all(symlink, sys.argv[1:])

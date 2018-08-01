@@ -84,7 +84,7 @@ class G3Out:
         dct['mp2s'] = self.mp2s.get_energy()
         dct['mp2l'] = self.mp2l.get_energy()
         dct['ccsdt'] = self.cc.get_energy()
-        dct['entropy_j'] = dct['entropy']*HARTREE_TO_J_MOL
+        # dct['entropy_j'] = dct['entropy']
 
         dct['e0'] = dct['ccsdt'] - dct['mp2s'] + dct['mp2l'] + dct['hlc']
         dct['enthalpy_au'] = dct['e0'] + dct['zpve'] + dct['tc']
@@ -104,17 +104,17 @@ class G3Out:
 
 class MassG3:
     def __init__(self, files, verbose=1, debug=False, **kwargs):
-        self.get_available_files(files, verbose=verbose)
+        self.get_available_files(files, verbose=verbose, **kwargs)
         self.sort_by_coords(verbose=verbose, debug=debug)
         self.link_related_groups(debug=debug)
         
 
-    def get_available_files(self, files, verbose=1):
+    def get_available_files(self, files, verbose=1, **kwargs):
         self.output_files = []
         _summaries = []
         for file in files:
             try:
-                parsed = read_output(file, verbose=verbose)
+                parsed = read_output(file, verbose=verbose, **kwargs)
                 if parsed:
                     if parsed.summary not in _summaries:
                         self.output_files.append(parsed)
@@ -250,7 +250,7 @@ class PKARef:
                     "energy_kj", "g_solv_dir", "direct_vs_indirect", 
                     "G_solv_", "self_ref_indirect", "self_ref_direct"]
 
-    def __init__(self, paths, outfile="pka_energies", ext="xlsx", reference=None, verbose=2, debug=False, **kwargs):
+    def __init__(self, paths, outfile="pka_energies", ext="xlsx", reference=None, verbose=2, debug=False, name_vacuum=False, **kwargs):
         files = []
         for path in paths:
             if os.path.isdir(path):
@@ -274,6 +274,10 @@ class PKARef:
         self.df.rename(columns=self.pka_keys_h, inplace=True)
         self.df.sort_values(by=['HLC', 'Mass (amu)', 'CC Energy (au)'], ascending=[False, False, True], inplace=True)
         self.nrows = len(self.df.index)
+
+        if name_vacuum:
+            self.df.loc[self.df['Solvent'].isna(), 'Solvent'] = "vacuum"
+
 
         fmt = dict(
             csv=self.write_csv,

@@ -16,6 +16,7 @@ PI          =   3.1415926539
 HARTREE_TO_KJ = 2625.5
 AMU_TO_KG   =1.6605402E-27
 A0  =0.5291772108
+CAL_TO_JOULES = 4.184
 
 
 class FileReader:
@@ -56,8 +57,11 @@ class FileReader:
                 self.get_contents()
             lines = self.contents
         
-
-        for line in lines[::int(reverse)-1]:
+        if reverse:
+            i = -1
+        else:
+            i = 1
+        for line in lines[::i]:
             if pattern in line:
                 return line
 
@@ -75,7 +79,7 @@ class QMOut(FileReader):
     def __str__(self):
         return self.filename
 
-    def __init__(self, filename, verbose=2):
+    def __init__(self, filename, verbose=2, **kwargs):
         super().__init__(filename, verbose=verbose)
         self.thermochem = ""
         self.get_contents()
@@ -84,7 +88,7 @@ class QMOut(FileReader):
         self.get_coordinates()
         self.get_method()
         self.get_solvation()
-        self.get_others(verbose=verbose)
+        self.get_others(verbose=verbose, **kwargs)
         self.thermochem += "\n"
         if verbose > 1:
             self.print_summary()
@@ -187,7 +191,7 @@ class QMOut(FileReader):
                 printgreen("Found similar coordinates.")
             return True
 
-        if debug or verbose > 2:
+        if debug and verbose > 4:
             printred(f"\nA: {self.filename[-n_letters:]}       B: {other.filename[-n_letters:]}")
             if verbose > 3:
                 printyellow(f"{'Input orientation':^100}")
@@ -231,7 +235,7 @@ class QMOut(FileReader):
 
     @staticmethod
     def get_value(line):
-        return np.float64(line.split("=")[-1].strip())
+        return float(line.split("=")[1].strip().split()[0].strip())
 
 
 
@@ -254,6 +258,8 @@ class GaussianLog(QMOut):
     def get_summary(self):
         super().get_summary()
         self.env, self.header, name, self.cmcoords, self.final = self.summary.split("\\\\")[:5]
+
+    
         #self.base_name = name.split(".")[0]
 
 
@@ -270,15 +276,21 @@ class GaussianLog(QMOut):
         self.energy = np.float64(energy)
         return self.energy
 
-    def get_dft_details(self, verbose=0, **kwargs):
+    def get_dft_details(self, verbose=0, scale=False, **kwargs):
         try:
             thermochem = section_by_pattern(self.contents, pattern="Thermochemistry")[1:][-1]
+            self.thermochemistry = thermochem
             if verbose > 2:
                 print("Thermochemistry found.")
-            try:
-                self.__dict__.update(scaling_factors[self.method][self.basis])
-            except KeyError:
-                printred(f"{self.method} {self.basis} scaling factors not specified yet.")
+
+            factors = scaling_factors["DEFAULT"]
+            if scale:
+                try:
+                    factors = scaling_factors[self.method][self.basis]
+                except KeyError:
+                    printred(f"{self.method} {self.basis} scaling factors not specified yet.")
+            self.__dict__.update(factors)
+
             self.temperature = float(self.search("Temperature", lines=thermochem).split()[1])
             self.mass_total = float(self.search("Molecular mass", lines=thermochem).split(":")[1].strip().split()[0])
             self.mass_total_kg = self.mass_total*AMU_TO_KG
@@ -303,62 +315,67 @@ class GaussianLog(QMOut):
         imol: ' the eigenvalues of imatrix in its first n elements ', n = 3
         """
 
-        ######### s_nutot #########
-        snusc       = self.frequencies * C_LIGHT * self.sf_s
-        theta       = snusc * H_PLANCK/KB
-        exp_theta   = np.exp(-theta/self.temperature) # exp(-theta(i)/tk)
-        qus         = 1/(1-exp_theta)
-        snu_top     = theta/self.temperature
-        snu_bottom  = np.exp(snu_top)-1   # exp(theta(i)/tk)-1)   -log(1-tmp)
+        # ######### s_nutot #########
+        # snusc       = self.frequencies * C_LIGHT * self.sf_s
+        # theta       = snusc * H_PLANCK/KB
+        # exp_theta   = np.exp(-theta/self.temperature) # exp(-theta(i)/tk)
+        # qus         = 1/(1-exp_theta)
+        # snu_top     = theta/self.temperature
+        # snu_bottom  = np.exp(snu_top)-1   # exp(theta(i)/tk)-1)   -log(1-tmp)
 
-        snu         = R_UNI * ( (snu_top/snu_bottom) -np.log(1-exp_theta))
-        s_nutot     = np.sum(snu)
+        # snu         = R_UNI * ( (snu_top/snu_bottom) -np.log(1-exp_theta))
+        # s_nutot     = np.sum(snu)
 
-        ######### s_trans #########
-        q_trans     = ((  (2*PI*self.mass_total_kg*KB*self.temperature)/(H_PLANCK**2))**1.5 )*KB*self.temperature/PPA
-        s_trans     = R_UNI * (np.log(q_trans) + 2.5)
-
-
-        ######### s_rot #########
-        if self.n_atoms <= 1: # assume molecules > 2 atoms are not linear
-            qrot = 0
-            s_rot = 0 # I think that's implied?
-        else:
-            self.get_imatrix(verbose=verbose)
-            imol, _ = np.linalg.eig(self.imatrix)
-            imolkg = imol*1.66054202E-27*((5.29177249E-11)**2)
-            thetaxyz = (H_PLANCK**2) / (8*(PI**2)*KB*imolkg)
-            sigma = int(float(self.search("Rotational symmetry number").split()[-1]))
-
-            if self.n_atoms == 2:
-                qrot = (self.temperature / thetaxyz[2])/sigma
-                s_rot = R_UNI * (math.log(qrot) + 1.0)
-            else: 
-                qrot = (PI**0.5)*(self.temperature**1.5)/(np.prod(thetaxyz)**0.5)/sigma
-                s_rot = R_UNI * (math.log(qrot) + 1.5)
+        # ######### s_trans #########
+        # q_trans     = ((  (2*PI*self.mass_total_kg*KB*self.temperature)/(H_PLANCK**2))**1.5 )*KB*self.temperature/PPA
+        # s_trans     = R_UNI * (np.log(q_trans) + 2.5)
 
 
-        ######### s_elec #########
-        q_elec = self.multiplicity
-        s_elec = R_UNI * math.log(q_elec)
+        # ######### s_rot #########
+        # if self.n_atoms <= 1: # assume molecules > 2 atoms are not linear
+        #     qrot = 0
+        #     s_rot = 0 # I think that's implied?
+        # else:
+        #     self.get_imatrix(verbose=verbose)
+        #     imol, _ = np.linalg.eig(self.imatrix)
+        #     imolkg = imol*1.66054202E-27*((5.29177249E-11)**2)
+        #     thetaxyz = (H_PLANCK**2) / (8*(PI**2)*KB*imolkg)
+        #     sigma = int(float(self.search("Rotational symmetry number").split()[-1]))
 
-        if verbose > 3:
-            print(f"""
-                s_nutot = {s_nutot}
-                s_trans = {s_trans}
-                s_rot   = {s_rot}
-                s_elec  = {s_elec}
-                """)
+        #     if self.n_atoms == 2:
+        #         qrot = (self.temperature / thetaxyz[2])/sigma
+        #         s_rot = R_UNI * (math.log(qrot) + 1.0)
+        #     else: 
+        #         qrot = (PI**0.5)*(self.temperature**1.5)/(np.prod(thetaxyz)**0.5)/sigma
+        #         s_rot = R_UNI * (math.log(qrot) + 1.5)
+
+
+        # ######### s_elec #########
+        # q_elec = self.multiplicity
+        # s_elec = R_UNI * math.log(q_elec)
+
+        # if verbose > 3:
+        #     print(f"""
+        #         s_nutot = {s_nutot}
+        #         s_trans = {s_trans}
+        #         s_rot   = {s_rot}
+        #         s_elec  = {s_elec}
+        #         """)
                 
 
-        self.entropy_kj = (s_trans + s_elec + s_rot + s_nutot) / 1000
-        self.entropy = self.entropy_kj / HARTREE_TO_KJ
+        # self.entropy_kj = (s_trans + s_elec + s_rot + s_nutot) / 1000
+        # self.entropy = self.entropy_kj / HARTREE_TO_KJ
+        entropy_line = section_by_pattern(self.contents, pattern="Cal/Mol-Kelvin")[1][1]
+        self.entropy_cal_mol_K = float(entropy_line.split()[-1])
+        self.entropy_scaled = self.entropy_cal_mol_K*self.sf_s
+        self.entropy_j = self.entropy_scaled*CAL_TO_JOULES
         if verbose > 3:
             print(f"""\
-                Entropy kJ: {self.entropy_kj}""")
+                Entropy Cal/Mol-Kelvin: {self.entropy_cal_mol_K}
+                Entropy scaled        : {self.entropy_scaled}""")
         self.thermochem += f"""
-            {styledarkcyan("Entropy:"):>30} {self.entropy_kj:>12.8f} kJ/mol/K
-            {styledarkcyan(" "):>30} {self.entropy:>12.8f} Hartrees\
+            {styledarkcyan("Entropy:"):>30} {self.entropy_scaled:>12.8f} Cal/mol-K
+            {styledarkcyan(" "):>30} {self.entropy_j:>12.8f} J\
             """
 
 
@@ -418,24 +435,69 @@ class GaussianLog(QMOut):
             tc_rot = 0
 
         tc_entropy = tc_vibr + tc_trans + tc_rot + tc_elec
-        self.tc_kj = tc_entropy + TEMP_R
-        self.tc = self.tc_kj / HARTREE_TO_KJ
+        self.tc_orig_ = tc_entropy + TEMP_R
+        self.tc_unit_ = "kj/mol"
+        self.tc = self.tc_orig_ / HARTREE_TO_KJ
 
         if verbose > 3:
+
             print(f"""
-                tc_vibr  = {tc_vibr}
-                tc_trans = {tc_trans}
-                tc_rot   = {tc_rot}
-                tc_elec  = {tc_elec}
-                """)
+                tc_entropy = {tc_entropy}
+                  tc_vibr  = {tc_vibr}
+                  tc_trans = {tc_trans}
+                  tc_rot   = {tc_rot}
+                  tc_elec  = {tc_elec}
+                        RT = {TEMP_R}
 
-        if verbose > 3:
-            print(f"""\
-                Thermal correction: {self.tc}""")
+                tc_kj_mol  = {self.tc_orig_}
+                tc_hartree = {self.tc_}
+                """)
+            # a = self.search("Electronic   ", lines=self.thermochemistry)
+            # b = self.search("Translational   ", lines=self.thermochemistry)
+            # c = self.search("Rotational   ", lines=self.thermochemistry)
+            # d = self.search("Vibrational   ", lines=self.thermochemistry)
+            # print("\n".join([a, b, c, d]))
+
+            # val = list(map(lambda x: float(x.split()[1]), [d, b, c, a]))
+            # print(f"Original: {val[0]}, {val[0]*CAL_TO_JOULES}, {val[0]*CAL_TO_JOULES/HARTREE_TO_KJ}")
+            # val[0] = val[0] - self.zpve_kcal
+            # valj = [x*CAL_TO_JOULES for x in val]
+            # print(valj)
+
+
+        # thermal_line = self.search("Thermal correction to Energy=")
+        # tc = self.get_value(thermal_line)
+        # rt = self.temperature*R_KJ/HARTREE_TO_KJ
+
+        # a = self.search("Electronic   ", lines=self.thermochemistry)
+        # b = self.search("Translational   ", lines=self.thermochemistry)
+        # c = self.search("Rotational   ", lines=self.thermochemistry)
+        # d = self.search("Vibrational   ", lines=self.thermochemistry)
+
+        # elec, trans, rot, vib = map(lambda x: float(x.split()[1])*CAL_TO_JOULES, [a, b, c, d])
+        # print(elec, trans, rot, vib)
+        # vib = vib-((self.zpve_kcal)*CAL_TO_JOULES)
+        # # print(elec, trans, rot, vib)
+        # # vib *= self.sf_tc
+        # print(elec, trans, rot, vib)
+
+        # tc_ent = elec+trans+rot+vib
+        # print(tc_ent)
+        # tc_ent *= self.sf_tc
+        # print(tc_ent)
+        # tc_ent += TEMP_R
+        # print(tc_ent)
+        # self.tc = tc_ent/HARTREE_TO_KJ
+
+        # # tc_kcal = elec+trans+rot+((vib-(self.zpve*HARTREE_TO_KJ/CAL_TO_JOULES))*self.sf_tc)
+        # # tc_hartree = tc_kcal*CAL_TO_JOULES/HARTREE_TO_KJ
+
+        # # self.tc = ((self.tc_orig - rt)*self.sf_tc) + rt
+        # self.tc = self.tc_orig
+
 
         self.thermochem += f"""
-            {styledarkcyan("Thermal corr.:"):>30} {self.tc_kj:>12.8f} kJ/mol
-            {styledarkcyan(" "):>30} {self.tc:>12.8f} Hartrees\
+            {styledarkcyan("Thermal corr.:"):>30} {self.tc:>12.8f} Hartrees\
             """
 
     def get_zero_point(self, verbose=0):
@@ -448,18 +510,23 @@ class GaussianLog(QMOut):
         kJ/mol
         """
 
-        zpnusc  = self.frequencies * C_LIGHT * self.sf_zpve
-        quzp    = zpnusc * H_PLANCK / KB
-        zpnu    = R_KJ * quzp * 0.5
+        # zpnusc  = self.frequencies * C_LIGHT * self.sf_zpve
+        # quzp    = zpnusc * H_PLANCK / KB
+        # zpnu    = R_KJ * quzp * 0.5
 
-        self.zpve_kj = np.sum(zpnu)
-        self.zpve    = self.zpve_kj / HARTREE_TO_KJ
-        if verbose > 3:
-            print(f"""\
-                ZPVE: {self.zpve}""")
+        # self.zpve_kj = np.sum(zpnu)
+        # self.zpve    = self.zpve_kj / HARTREE_TO_KJ
+        # if verbose > 3:
+        #     print(f"""\
+        #         ZPVE: {self.zpve}""")
+
+        zpve_line = self.search("Zero-point correction=")
+        self.zpve_orig = float(zpve_line.split("=")[1].strip().split()[0].strip())
+        self.zpve_kcal = self.zpve_orig*HARTREE_TO_KJ/CAL_TO_JOULES
+        self.zpve = self.zpve_orig*self.sf_zpve
         self.thermochem += f"""
-            {styledarkcyan("ZPVE:"):>30} {self.zpve_kj:>12.8f} kJ/mol
-            {styledarkcyan(" "):>30} {self.zpve:>12.8f} Hartrees\
+            {styledarkcyan("ZPVE original:"):>30} {self.zpve_orig:>12.8f} Hartrees
+            {styledarkcyan("scaled:"):>30} {self.zpve:>12.8f} Hartrees\
             """
 
 
@@ -594,7 +661,7 @@ class GaussianLog(QMOut):
         self.at_z = np.array(parsed['at_z'], dtype=int)
 
     def get_all(self):
-        keys = ["charge", "mass_total", "filename", "base_name", "zpve", "tc", "hlc", "entropy", "temperature", "elements", "solvate", "solvent", "solvent_model"]
+        keys = ["charge", "mass_total", "filename", "base_name", "zpve", "tc", "hlc", "entropy_j", "temperature", "elements", "solvate", "solvent", "solvent_model"]
         dct = dict((k, self.__dict__[k]) for k in keys)
         return dct
 
@@ -676,9 +743,9 @@ output = dict(
     out=QChemOut,
     log=GaussianLog)
 
-def read_output(filename, verbose=1):
+def read_output(filename, verbose=1, **kwargs):
     try:
-        return output[filename[-3:]](filename, verbose=verbose)
+        return output[filename[-3:]](filename, verbose=verbose, **kwargs)
     except KeyError:
         pass
 
