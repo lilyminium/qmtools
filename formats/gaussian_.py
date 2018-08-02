@@ -416,6 +416,7 @@ class GaussianLog(QMOut):
         """
 
         TEMP_R      =   R_KJ * self.temperature # used a lot...
+        print(TEMP_R)
 
         hnusc = self.frequencies * self.sf_tc * C_LIGHT
         quh   = hnusc * H_PLANCK/KB
@@ -424,6 +425,7 @@ class GaussianLog(QMOut):
         tc_vibr = np.sum(hnu)
         tc_trans = TEMP_R * 1.5
         tc_elec  = 0 # why? Ask thermochem-auto
+        print(tc_elec)
 
         # checking for linearity -- I assume all molecules > 2 atoms are linear
 
@@ -438,11 +440,13 @@ class GaussianLog(QMOut):
         self.tc_orig_ = tc_entropy + TEMP_R
         self.tc_unit_ = "kj/mol"
         self.tc = self.tc_orig_ / HARTREE_TO_KJ
+        print(self.tc)
 
-        if verbose > 3:
+        if verbose > -1:
+            print("verbose")
 
             print(f"""
-                tc_entropy = {tc_entropy}
+                
                   tc_vibr  = {tc_vibr}
                   tc_trans = {tc_trans}
                   tc_rot   = {tc_rot}
@@ -450,49 +454,54 @@ class GaussianLog(QMOut):
                         RT = {TEMP_R}
 
                 tc_kj_mol  = {self.tc_orig_}
-                tc_hartree = {self.tc_}
+                tc_hartree = {self.tc}
                 """)
-            # a = self.search("Electronic   ", lines=self.thermochemistry)
-            # b = self.search("Translational   ", lines=self.thermochemistry)
-            # c = self.search("Rotational   ", lines=self.thermochemistry)
-            # d = self.search("Vibrational   ", lines=self.thermochemistry)
-            # print("\n".join([a, b, c, d]))
+            #tc_entropy = {tc_entropy}
+            a = self.search("Electronic   ", lines=self.thermochemistry)
+            b = self.search("Translational   ", lines=self.thermochemistry)
+            c = self.search("Rotational   ", lines=self.thermochemistry)
+            d = self.search("Vibrational   ", lines=self.thermochemistry)
+            print("\n".join([a, b, c, d]))
 
-            # val = list(map(lambda x: float(x.split()[1]), [d, b, c, a]))
-            # print(f"Original: {val[0]}, {val[0]*CAL_TO_JOULES}, {val[0]*CAL_TO_JOULES/HARTREE_TO_KJ}")
-            # val[0] = val[0] - self.zpve_kcal
-            # valj = [x*CAL_TO_JOULES for x in val]
-            # print(valj)
+            val = list(map(lambda x: float(x.split()[1]), [d, b, c, a]))
+            print(f"Original: {val[0]}, {val[0]*CAL_TO_JOULES}, {val[0]*CAL_TO_JOULES/HARTREE_TO_KJ}")
+            val[0] = val[0] - self.zpve_kcal
+            valj = [x*CAL_TO_JOULES for x in val]
+            print(valj)
 
 
         # thermal_line = self.search("Thermal correction to Energy=")
         # tc = self.get_value(thermal_line)
         # rt = self.temperature*R_KJ/HARTREE_TO_KJ
 
-        # a = self.search("Electronic   ", lines=self.thermochemistry)
-        # b = self.search("Translational   ", lines=self.thermochemistry)
-        # c = self.search("Rotational   ", lines=self.thermochemistry)
-        # d = self.search("Vibrational   ", lines=self.thermochemistry)
+        a = self.search("Electronic   ", lines=self.thermochemistry)
+        b = self.search("Translational   ", lines=self.thermochemistry)
+        c = self.search("Rotational   ", lines=self.thermochemistry)
+        d = self.search("Vibrational   ", lines=self.thermochemistry)
 
-        # elec, trans, rot, vib = map(lambda x: float(x.split()[1])*CAL_TO_JOULES, [a, b, c, d])
+        elec, trans, rot, vib = map(lambda x: float(x.split()[1]), [a, b, c, d])
+        print(vib, trans, rot, elec)
+        vib -= self.zpve_kcal
+        kj = [x*CAL_TO_JOULES for x in [vib, trans, rot, elec]]
         # print(elec, trans, rot, vib)
-        # vib = vib-((self.zpve_kcal)*CAL_TO_JOULES)
-        # # print(elec, trans, rot, vib)
-        # # vib *= self.sf_tc
-        # print(elec, trans, rot, vib)
+        # vib *= self.sf_tc
+        print(kj)
 
         # tc_ent = elec+trans+rot+vib
         # print(tc_ent)
         # tc_ent *= self.sf_tc
-        # print(tc_ent)
-        # tc_ent += TEMP_R
-        # print(tc_ent)
-        # self.tc = tc_ent/HARTREE_TO_KJ
+        print(sum([tc_vibr + tc_trans + tc_rot + tc_elec]))
+        tc_ent = sum(kj)
+        print(tc_ent)
+        tc_ent += TEMP_R
+        print(tc_ent)
+        self.tc = tc_ent/HARTREE_TO_KJ
+        print(self.tc)
 
-        # # tc_kcal = elec+trans+rot+((vib-(self.zpve*HARTREE_TO_KJ/CAL_TO_JOULES))*self.sf_tc)
-        # # tc_hartree = tc_kcal*CAL_TO_JOULES/HARTREE_TO_KJ
+        # tc_kcal = elec+trans+rot+((vib-(self.zpve*HARTREE_TO_KJ/CAL_TO_JOULES))*self.sf_tc)
+        # tc_hartree = tc_kcal*CAL_TO_JOULES/HARTREE_TO_KJ
 
-        # # self.tc = ((self.tc_orig - rt)*self.sf_tc) + rt
+        # self.tc = ((self.tc_orig - rt)*self.sf_tc) + rt
         # self.tc = self.tc_orig
 
 

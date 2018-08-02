@@ -39,7 +39,7 @@ def get_prefixes(original, max_n_prefixes, min_len=4, min_match=3):
     def _group_by_first(lst, min_len):
         out = []
         non_empty = sorted([x for x in lst if len(x)>min_len])
-        for k, v in itertools.groupby(non_empty, key = lambda x: x[0]):
+        for k, v in itertools.groupby(non_empty, key = lambda x: x[:min_len]):
             out.append(list(v))
         return out
 
