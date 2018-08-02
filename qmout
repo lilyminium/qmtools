@@ -48,10 +48,10 @@ parser.add_argument('--vac',
                         action='store_true',
                         dest="name_vacuum",
                         help='Name gas phase vacuum (instead of nothing)')
-parser.add_argument('--scale', 
-                        action='store_true',
+parser.add_argument('--noscale', 
+                        action='store_false',
                         dest="scale",
-                        help='Use scaling factors')
+                        help="Don't use scaling factors")
 
 
 args = parser.parse_args(sys.argv[1:])
