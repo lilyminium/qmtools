@@ -26,9 +26,12 @@ class G3Out:
 
     def __init__(self, *outfiles, verbose=1, **kwargs):
         mp2_jobs = []
+        basis = []
         for file in outfiles:
             if "mp2" in file.method.lower():
-                mp2_jobs.append(file)
+                if not file.n_basis in basis:
+                    mp2_jobs.append(file)
+                    basis.append(file.n_basis)
             elif file.tc is not None:
                 self.dft = file
             else:
@@ -116,16 +119,17 @@ class MassG3:
             try:
                 parsed = read_output(file, verbose=verbose, **kwargs)
                 if parsed:
-                    if parsed.summary not in _summaries:
+                    matched = [x for x in self.output_files if x.compare(parsed)]
+                    if not matched:
+                    # parsed.summary not in _summaries:
                         self.output_files.append(parsed)
-                        _summaries.append(parsed.summary)
+                        # _summaries.append(parsed.summary)
                     elif verbose > 1:
-                        idx = _summaries.index(parsed.summary)
-                        printred(f"Not added: {file} is identical to {self.output_files[idx]}")
-                elif verbose > 3:
+                        printred(f"Not added: {file} is identical to {matched[0]}")
+                elif verbose > 5:
                     printred(f"Failed to parse: {file}")
             except:
-                if verbose > 3:
+                if verbose > 5:
                     printred(f"Failed to parse: {file}")
         # self.output_files.sort(key=lambda x: x.charge, reverse=True)
 
@@ -134,6 +138,9 @@ class MassG3:
         grouped_files = []
         self.g3 = []
         n_infile = len(self.output_files)
+        if verbose > 2:
+            print(f"Parsed:")
+            print("\n".join([x.filename for x in self.output_files]))
         while self.output_files:
             current = self.output_files[0]
             matched = [x for x in self.output_files if x.similar_to(current, debug=debug, verbose=verbose)]

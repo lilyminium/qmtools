@@ -88,12 +88,13 @@ class QMOut(FileReader):
         self.get_coordinates()
         self.get_method()
         self.get_solvation()
+        self.get_energy()
         self.get_others(verbose=verbose, **kwargs)
         self.thermochem += "\n"
         if verbose > 1:
             self.print_summary()
 
-    def compare(self, other, n_char=20, ncol=10):
+    def compare(self, other, n_char=20, ncol=10, verbose=0):
 
         def _compare(a, b, name):
             fmt = dict(
@@ -107,35 +108,41 @@ class QMOut(FileReader):
             f_a = fmt.get(type(a).__name__, fmt['str'])
 
             diff = ["red", None ][a == b]
-            print(style(f"{name.capitalize():>15}: {a:{f_a}}  {b:{f_a}}", diff))
+            if verbose:
+                print(style(f"{name.capitalize():>15}: {a:{f_a}}  {b:{f_a}}", diff))
+            return a==b
 
 
 
-
-        printyellow(f"{self.filename:^{n_char}} {other.filename:^{n_char}}")
-        for attr in ["solvate", "solvent", "charge", "multiplicity", "method", "basis", "n_atoms"]:
+        if verbose:
+            printyellow(f"{self.filename:^{n_char}} {other.filename:^{n_char}}")
+        same = True
+        for attr in ["solvate", "solvent", "charge", "multiplicity", "method", "basis", "n_atoms", "energy"]:
             s_a = getattr(self, attr)
             o_a = getattr(other, attr)
 
-            _compare(s_a, o_a, attr)
+            same = same and _compare(s_a, o_a, attr)
 
         if self.n_atoms == other.n_atoms:
             if self.elements == other.elements:
-                print("""\
-                Elements match up.""")
-
-                if self.similar_orientation_to(other, verbose=0):
+                if verbose:
                     print("""\
-                Coordinates are similar.""")
-                else:
-                    diff, rmsd = self._diff_coordinates(self.coordinates, other.coordinates, _print=False)
-                    printred(f"""\
-                Coordinates are not similar.
-                RMSD: {rmsd:6.4f}    Diff: {diff:6.4f}""")
+                    Elements match up.""")
+
+                    if self.similar_orientation_to(other, verbose=0):
+                        print("""\
+                    Coordinates are similar.""")
+                    else:
+                        diff, rmsd = self._diff_coordinates(self.coordinates, other.coordinates, _print=False)
+                        printred(f"""\
+                    Coordinates are not similar.
+                    RMSD: {rmsd:6.4f}    Diff: {diff:6.4f}""")
 
             else:
                 printred("Elements don't match.")
                 printred([(x, y) for x, y in zip(self.elements, other.elements) if x != y])
+                same = False
+        return same
 
                 
 
@@ -144,9 +151,10 @@ class QMOut(FileReader):
 
     def print_summary(self):
         print(f"""
-            {styledarkcyan("Method:")} {self.method: <8} {styledarkcyan("Solvent:"):16} {self.solvent}
-            {styledarkcyan("Charge:")} {self.charge: <8d} {styledarkcyan("Multiplicity:"):16} {self.multiplicity}
-             {styledarkcyan("Atoms:")} {self.n_atoms: <8d} {styledarkcyan("Basis functions:"):16} {self.n_basis}\n{self.thermochem}""")
+            {styledarkcyan("Method:")} {self.method: <10} {styledarkcyan("Solvent:"):16} {self.solvent}
+            {styledarkcyan("Basis:")} {self.basis: <10}  {styledarkcyan("Energy:"):16} {self.energy}
+            {styledarkcyan("Charge:")} {self.charge: <10d} {styledarkcyan("Multiplicity:"):16} {self.multiplicity}
+             {styledarkcyan("Atoms:")} {self.n_atoms: <10d} {styledarkcyan("Basis functions:"):16} {self.n_basis}\n{self.thermochem}""")
             
         
 
@@ -357,7 +365,7 @@ class GaussianLog(QMOut):
         s_elec = R_UNI * math.log(q_elec)
 
         self.entropy_kj = (s_trans + s_elec + s_rot + s_nutot) 
-        self.entropy_j = self.entropy_kj / 1000
+        self.entropy_j = self.entropy_kj 
 
 
         if verbose > 3:
@@ -731,7 +739,7 @@ class QChemOut(QMOut):
             if method in line and "total energy" in line:
                 self.energy = np.float64(line.split("=")[-1].strip())
                 return self.energy
-        raise ValueError("No energies found.")
+        raise ValueError(f"No energies found. {self.filename}")
 
     def get_solvation(self):
         try:
@@ -816,5 +824,5 @@ def mass_read(paths, verbose=2, action="summarise", **kwargs):
 
     if action == "compare":
         for a, b in itertools.combinations(parsed_files, 2):
-            a.compare(b)
+            a.compare(b, verbose=verbose)
 

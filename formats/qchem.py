@@ -33,7 +33,7 @@ class QChemInp(QMInp):
                 self.jobtype2 = "freq"
 
         if self.solvate:
-            self.remsolv = indent(f"SOLVENT_METHOD {self.solvent_model}", n=4)
+            self.remsolv = f"SOLVENT_METHOD {self.solvent_model}"
             self.solvent_section = indent(f"\n$smx\n  solvent {self.solvent}\n$end")
 
     def make_file_lines(self):
@@ -43,7 +43,7 @@ class QChemInp(QMInp):
         cc_backend  = f"CC_BACKEND     {self.backend}"
         mem_total   =  "MEM_TOTAL      60000"
 
-        rem_lines = [jobstr, theory, basis, cc_backend, mem_total]
+        rem_lines = [jobstr, theory, basis, cc_backend, self.remsolv, mem_total]
         rem_body = "".join([indent(x, n=4) for x in rem_lines])
 
         molspec = f"$molecule\n  {self.cm}\n{self.coords}$end\n"
